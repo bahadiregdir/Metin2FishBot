@@ -1,13 +1,22 @@
 @echo off
-title FishBot
-color 0B
+title Metin2 FishBot
+color 0E
 
-:: Sanal ortami aktive et ve calistir
-if exist "venv\Scripts\activate.bat" (
-    call venv\Scripts\activate.bat
-    python src/gui.py
-) else (
+if not exist "venv" (
+    color 0C
     echo [HATA] Kurulum yapilmamis!
-    echo Lutfen once INSTALL.bat dosyasini calistirin.
+    echo Lutfen once 'INSTALL.bat' dosyasini calistirin.
+    pause
+    exit
+)
+
+echo Bot baslatiliyor... Lutfen bekleyin...
+call venv\Scripts\activate
+python src/gui.py
+
+if %errorlevel% neq 0 (
+    color 0C
+    echo.
+    echo [HATA] Bot bir hata ile kapandi veya durduruldu.
     pause
 )
