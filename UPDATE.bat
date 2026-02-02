@@ -1,39 +1,22 @@
 @echo off
-title FishBot Guncelleyici
-color 0D
-
-echo ========================================
-echo    FishBot - Guncelleme Baslatiliyor
-echo ========================================
+title Metin2 FishBot Guncelleme
+color 0B
+echo.
+echo FishBot Guncelleniyor...
 echo.
 
-:: Git kontrolu
-git --version >nul 2>&1
-if errorlevel 1 (
-    echo [HATA] Git bulunamadi!
-    echo Lutfen Git'i kurun: https://git-scm.com/download/win
+git pull
+if %errorlevel% neq 0 (
+    color 0C
+    echo.
+    echo [HATA] Guncelleme sirasinda bir sorun olustu.
+    echo Internet baglantinizi kontrol edin veya manuel indirin.
     pause
-    exit /b 1
-)
-
-:: Guncellemeleri cek
-echo [1/2] GitHub'dan son surum cekiliyor...
-git pull origin main
-
-:: Sanal ortami kontrol et
-if exist "venv\Scripts\activate.bat" (
-    echo.
-    echo [2/2] Kutuphaneler guncelleniyor...
-    call venv\Scripts\activate.bat
-    pip install -r requirements.txt -q
-) else (
-    echo.
-    echo [UYARI] Sanal ortam bulunamadi, sadece kodlar guncellendi.
+    exit
 )
 
 echo.
-echo ========================================
-echo    GUNCELLEME TAMAMLANDI!
-echo ========================================
+echo [BASARILI] Bot guncellendi!
 echo.
+echo Simdi 'RUN.bat' ile calistirabilirsiniz.
 pause
