@@ -64,7 +64,7 @@ class BotSettings:
     DEFAULT_WINDOW_TITLE = "Metin2"
 
 class BotCore:
-    def __init__(self, update_log_callback=None, api_key=None):
+    def __init__(self, update_log_callback=None, api_key=None, inventory_manager=None):
         self.is_running = False
         self.log_callback = update_log_callback
         self.state = "IDLE" 
