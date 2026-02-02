@@ -74,11 +74,10 @@ class BotCore:
         self.minigame_area = None # Kullanıcı tarafından seçilen özel alan (Sol Üst / Sağ Alt)
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
-        # Balık Rengi (HSV) - GENİŞLETİLMİŞ MOD
-        # Alanı kısıtladığımız için (Minigame Area) artık filtreyi gevşetebiliriz.
-        # Görseldeki balık tam siyah değil, koyu gri/kahverengi tonlarında.
+        # Balık Rengi (HSV) - GENİŞLETİLMİŞ MOD (SON NOKTA)
+        # Value 150 = Bayağı açık gri. Sudaki her gölgeyi alır ama "Minigame Alanı" dar olduğu için güvenli.
         self.fish_lower = np.array([0, 0, 0])      
-        self.fish_upper = np.array([180, 255, 120]) # Value 120'ye kadar izin ver (Koyu Gri)
+        self.fish_upper = np.array([180, 255, 150])
         
         # Minigame Tetikleyicisi (Kırmızı Daire) için kullanılan değerler detect_red_trigger içinde tanımlı.
         
@@ -716,19 +715,45 @@ class BotCore:
                              
                              self.log(f"🔴 KIRMIZI ! -> 🐟 Hedef (Global): {abs_x}, {abs_y}")
                              
-                             if IS_WINDOWS:
-                                 import direct_input
-                                 self.log(f"📍 Mouse taşınıyor...")
-                                 direct_input.move_mouse(abs_x, abs_y)
-                                 time.sleep(0.05)
-                                 direct_input.click_mouse()
-                                 
-                                 self.stats["caught"] += 1
-                                 self.log("✅ Tıklandı!")
-                                 time.sleep(1.5)
-                                 self.state = "IDLE"
+                             # --- MOUSE HAREKET VE TIKLAMA (Robust) ---
+                             try:
+                                 if IS_WINDOWS:
+                                    try:
+                                        import direct_input
+                                        # 1. Hareket
+                                        direct_input.move_mouse(abs_x, abs_y)
+                                        # 2. Tıkla (Yavaşça)
+                                        direct_input.mouse_down()
+                                        time.sleep(0.15) # Basılı tut (Oyun algılasın)
+                                        direct_input.mouse_up()
+                                        
+                                        self.log("🖱️ Mouse Hardware Click gönderildi.")
+                                    except Exception as e_di:
+                                        self.log(f"Bonus Mouse hatası: {e_di}. Pydirectinput deneniyor...")
+                                        import pydirectinput
+                                        pydirectinput.moveTo(abs_x, abs_y)
+                                        pydirectinput.mouseDown()
+                                        time.sleep(0.15)
+                                        pydirectinput.mouseUp()
+                                 else:
+                                     # Mac/Linux
+                                     import pyautogui
+                                     pyautogui.moveTo(abs_x, abs_y)
+                                     pyautogui.click()
+                                     
+                             except Exception as e:
+                                 self.log(f"Mouse Hata: {e}")
+
+                             # Tıkladıktan sonra bekle ve döngüden çık
+                             # Tıkladıktan sonra bekle ve duruma dön
+                             self.log("✅ Vuruş yapıldı! Bekleniyor...")
+                             self.stats["caught"] += 1
+                             time.sleep(1.5)
+                             self.state = "IDLE"
+                             
                          else:
-                             self.log("⚠️ Kırmızı var, Balık YOK! (Siyah nesne bulunamadı)")
+                             # self.log("⚠️ Kırmızı var, Balık YOK! (Siyah nesne bulunamadı)")
+                             pass
 
                     time.sleep(0.01) # Çok hızlı tarama (Refleks için)
 
@@ -736,16 +761,19 @@ class BotCore:
         """Görüntüde Kırmızı Daire/Halka var mı? Varsa merkezini döndür."""
         try:
             frame = np.array(img)
+            # Eğer imaj 4 kanallıysa (BGRA) dönüştür
             if frame.shape[2] == 4:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             
-            # Kırmızı Renk Maskeleme (Private Server - Pastel Kırmızı)
-            # Saturation 50'ye çekildi (Daha pembe tonları da alsın)
-            lower1 = np.array([0, 50, 100])
-            upper1 = np.array([10, 255, 255])
-            lower2 = np.array([170, 50, 100])
+            # Kırmızı Renk Maskeleme (Her türlü kırmızıyı kapsar)
+            # Saturation 40 = Çok soluk kırmızı/pembe
+            lower1 = np.array([0, 40, 60])
+            upper1 = np.array([15, 255, 255]) # 10 -> 15
+            
+            lower2 = np.array([165, 40, 60]) # 170 -> 165
             upper2 = np.array([180, 255, 255])
+            
             mask = cv2.addWeighted(cv2.inRange(hsv, lower1, upper1), 1.0, cv2.inRange(hsv, lower2, upper2), 1.0, 0.0)
             
             kernel = np.ones((3,3), np.uint8)
