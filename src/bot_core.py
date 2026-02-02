@@ -74,11 +74,11 @@ class BotCore:
         self.minigame_area = None # Kullanıcı tarafından seçilen özel alan (Sol Üst / Sağ Alt)
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
-        # Balık Rengi (HSV) - SİMSİYAH/KOYU GRİ MODU
-        # Değeri biraz açıyoruz (45 -> 75) çünkü oyun ışığına göre balık tam siyah olmayabilir.
-        # Su dokusu genelde daha parlaktır (>80-90), o yüzden 75 güvenli olmalı.
+        # Balık Rengi (HSV) - GENİŞLETİLMİŞ MOD
+        # Alanı kısıtladığımız için (Minigame Area) artık filtreyi gevşetebiliriz.
+        # Görseldeki balık tam siyah değil, koyu gri/kahverengi tonlarında.
         self.fish_lower = np.array([0, 0, 0])      
-        self.fish_upper = np.array([180, 255, 75])
+        self.fish_upper = np.array([180, 255, 120]) # Value 120'ye kadar izin ver (Koyu Gri)
         
         # Minigame Tetikleyicisi (Kırmızı Daire) için kullanılan değerler detect_red_trigger içinde tanımlı.
         
@@ -740,10 +740,11 @@ class BotCore:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             
-            # Kırmızı Renk Maskeleme (Private Server Ayarı)
-            lower1 = np.array([0, 100, 100])
+            # Kırmızı Renk Maskeleme (Private Server - Pastel Kırmızı)
+            # Saturation 50'ye çekildi (Daha pembe tonları da alsın)
+            lower1 = np.array([0, 50, 100])
             upper1 = np.array([10, 255, 255])
-            lower2 = np.array([170, 100, 100])
+            lower2 = np.array([170, 50, 100])
             upper2 = np.array([180, 255, 255])
             mask = cv2.addWeighted(cv2.inRange(hsv, lower1, upper1), 1.0, cv2.inRange(hsv, lower2, upper2), 1.0, 0.0)
             
