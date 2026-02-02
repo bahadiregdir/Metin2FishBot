@@ -113,7 +113,7 @@ class BotCore:
             
     def reload_config(self):
         """Ayarları dosyadan yeniler"""
-        if not hasattr(self, 'inventory_manager'):
+        if not hasattr(self, 'inventory_manager') or self.inventory_manager is None:
             from inventory import InventoryManager
             self.inventory_manager = InventoryManager(telegram_callback=self.on_inventory_event)
             
