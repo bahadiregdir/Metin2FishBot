@@ -637,14 +637,13 @@ class BotCore:
                     self.log("Olta atılıyor...")
                     if IS_WINDOWS:
                         # Olta At (Space)
-                        # Space tuşuna basılı tutma süresi eklenebilir (dolum için) ama genelde tek tık yeter.
-                        # Minigame açılması için "Space"e basıp beklemek gerekebilir, versiyona göre değişir.
-                        # Şimdilik normal bas-çek yapıyoruz.
-                        direct_input.send_key("space")
+                        # Space tuşuna biraz daha uzun basalım
+                        direct_input.send_key("space", duration=0.2)
                     
                     self.stats["casts"] += 1
                     
-                    # Balık bekleme moduna geç (Minigame penceresini bekle)
+                    # KRİTİK DÜZELTME: State değişimi
+                    self.state = "WAITING_FISH"
                     self.wait_start_time = time.time()
                     # self.log("Balık/Minigame bekleniyor...")
                     
