@@ -624,16 +624,34 @@ class BotCore:
                     # Olta atma öncesi rastgele bekleme
                     self.sleep_random(self.cast_min, self.cast_max)
                     
+                    # --- YEM YENİLEME (GELİŞMİŞ) ---
+                    # Yem takma önceliği olta atmadan önce olmalı!
+                    self.worm_counter += 1
+                    
+                    # İlk açılışta veya eşik değeri aşılınca yem tak
+                    if self.worm_counter >= BotSettings.WORM_REFILL_THRESHOLD:
+                         self.log("🪱 Yem tazeleniyor...")
+                         if IS_WINDOWS:
+                             import direct_input
+                             # Yem tuşuna bas (Örn: F1)
+                             direct_input.send_key(self.bait_key)
+                             time.sleep(1.5) # Yem takma animasyonu bekle
+                             self.worm_counter = 0
+                    
+                    # ------------------------------------
+
                     self.log("Olta atılıyor...")
-                    pydirectinput.press('space')
+                    if IS_WINDOWS:
+                        import direct_input
+                        direct_input.send_key("space")
+                    
                     self.stats["casts"] += 1
                     
-                    # Yem Yenileme Kontrolü (Solucan)
-                    self.worm_counter += 1
-                    if self.inventory_manager and self.worm_counter >= BotSettings.WORM_REFILL_THRESHOLD:
-                        self.log("🪱 Yem yenileniyor...")
-                        self._refill_bait_routine()
-                        self.worm_counter = 0
+                    # Balık bekleme moduna geç
+                    self.state = "WAITING_FISH"
+                    self.log("Balık bekleniyor...")
+                    
+                    self.wait_start_time = time.time()
 
                     # Olta atma animasyonu bekleme
                     base = BotSettings.ANIMATION_WAIT_BASE
