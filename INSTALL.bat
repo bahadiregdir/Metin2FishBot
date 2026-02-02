@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 title Metin2 FishBot Kurulumu
 color 0A
 echo ===================================================
