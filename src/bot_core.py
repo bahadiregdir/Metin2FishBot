@@ -661,50 +661,57 @@ class BotCore:
                     time.sleep(wait_time) 
 
                 elif self.state == "WAITING_FISH":
-                    # --- MİNİGAME (KIRMIZI DAİRE) MODU ---
+                    # --- MİNİGAME MODU: KIRMIZI GÖR -> SİYAHA VUR ---
                     
                     # 1. Timeout Kontrolü
                     if (time.time() - self.wait_start_time) > self.wait_timeout:
-                          self.log("⚠️ Zaman aşımı! Minigame bitti veya balık gelmedi.")
+                          self.log("⚠️ Zaman aşımı! Sıradaki...")
                           self.state = "IDLE"
-                          # Rutin kontroller
                           self.anti_afk_routine()
                           continue
                     
                     # 2. Görüntü Al
                     img = sct.grab(self.monitor)
                     
-                    # 3. Kırmızı Daire Ara (Tetikleyici)
-                    red_center = self.find_red_circle(img)
-                    
-                    if red_center:
-                         self.log("🔴 KIRMIZI DAİRE TESPİT EDİLDİ! VURULUYOR!")
+                    # 3. Kırmızı Daire Kontrolü (Tetikleyici)
+                    if self.detect_red_trigger(img):
+                         # Kırmızıyı gördük! Şimdi balığı (siyah lekeyi) bulmamız lazım.
+                         fish_pos = self.find_fish(img) # Koyu modda ayarlı zaten
                          
-                         if IS_WINDOWS:
-                             import direct_input
-                             # Fareyi hedefe götür
-                             tx, ty = red_center
-                             abs_x = int(self.monitor["left"] + tx)
-                             abs_y = int(self.monitor["top"] + ty)
+                         if fish_pos:
+                             self.log("🔴 KIRMIZI ! -> 🐟 BALIK HEDEFLENİYOR!")
                              
-                             # Hareket
-                             pydirectinput.moveTo(abs_x, abs_y)
-                             
-                             # Vuruş (Hem Tık Hem Space)
-                             pydirectinput.click() 
-                             direct_input.send_key("space") 
-                             
-                             self.stats["caught"] += 1
-                             self.log("✅ Vuruş Yapıldı!")
-                             
-                             # Minigame bitişini bekle
-                             time.sleep(2.0)
-                             self.state = "IDLE"
+                             if IS_WINDOWS:
+                                 import direct_input
+                                 
+                                 # Balığın konumuna git
+                                 tx, ty = fish_pos # Balığın merkezi
+                                 abs_x = int(self.monitor["left"] + tx)
+                                 abs_y = int(self.monitor["top"] + ty)
+                                 
+                                 pydirectinput.moveTo(abs_x, abs_y)
+                                 
+                                 # VUR! (Click + Space)
+                                 pydirectinput.click() 
+                                 direct_input.send_key("space") 
+                                 
+                                 self.stats["caught"] += 1
+                                 self.log("✅ Yakalandı!")
+                                 
+                                 # Minigame bitişini bekle ve başa dön
+                                 time.sleep(2.0)
+                                 self.state = "IDLE"
+                         else:
+                             # Kırmızı yandı ama balığı bulamadık (Nadir durum)
+                             # Belki balık tam kırmızı dairenin üstündedir ve renk karışmıştır?
+                             # Bu durumda 'red_center'a (dairenin merkezine) vurmak mantıklı bir fallback olabilir.
+                             # Şimdilik sadece log basalım.
+                             pass # self.log("Kırmızı var ama balık yok?")
 
-                    time.sleep(0.05) # CPU Koruma
+                    time.sleep(0.01) # Çok hızlı tarama (Refleks için)
 
-    def find_red_circle(self, img):
-        """Görüntüde Kırmızı Daire/Halka arar"""
+    def detect_red_trigger(self, img):
+        """Görüntüde Kırmızı Daire/Halka var mı? (Tetikleyici)"""
         try:
             # Görüntü dönüşümü
             frame = np.array(img)
@@ -715,41 +722,37 @@ class BotCore:
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
             # Kırmızı Renk Maskeleme (İki aralık)
-            # Alt Kırmızı (0-10)
-            lower1 = np.array([0, 120, 70])
+            # Private Server'daki kırmızının tonu (Genelde parlak kırmızı)
+            # 0-10 ve 170-180 arası
+            
+            lower1 = np.array([0, 100, 100])
             upper1 = np.array([10, 255, 255])
-            # Üst Kırmızı (170-180)
-            lower2 = np.array([170, 120, 70])
+            
+            lower2 = np.array([170, 100, 100])
             upper2 = np.array([180, 255, 255])
             
             mask1 = cv2.inRange(hsv, lower1, upper1)
             mask2 = cv2.inRange(hsv, lower2, upper2)
             mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
             
-            # Gürültü temizleme
-            kernel = np.ones((5,5), np.uint8) # Biraz büyük kernel halkayı birleştirmek için
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            # Gürültü temizleme (Küçük noktaları yok et)
+            kernel = np.ones((3,3), np.uint8)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
-            # Kontur bul
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Yeterince kırmızı piksel var mı?
+            # Kontur bulmak yerine sadece piksel sayısına bakmak çok daha hızlıdır! (Refleks için ideal)
+            red_pixels = cv2.countNonZero(mask)
             
-            if contours:
-                # En büyük kırmızı alan (Daire/Halka)
-                largest = max(contours, key=cv2.contourArea)
-                area = cv2.contourArea(largest)
+            # Eşik Değer: Minigame dairesi yandığında hatrı sayılır bir alan kırmızı olur.
+            # Çok küçük değerler gürültü olabilir.
+            if red_pixels > 200: 
+                return True
                 
-                # Yeterince büyük mü? (Minigame dairesi büyüktür)
-                if area > 100: 
-                    # Ağırlık merkezi
-                    M = cv2.moments(largest)
-                    if M["m00"] != 0:
-                        cX = int(M["m10"] / M["m00"])
-                        cY = int(M["m01"] / M["m00"])
-                        return (cX, cY)
-            return None
+            return False
         except Exception as e:
-            # self.log(f"Red circle error: {e}")
-            return None
+            # self.log(f"Red trigger error: {e}")
+            return False
+
 
     def process_inventory(self, sct):
         """Envanteri tarar ve işlemleri yapar (Çok sayfalı destek)"""
