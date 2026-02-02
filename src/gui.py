@@ -616,52 +616,93 @@ class App(ctk.CTk):
                 self.update_log(f"Yükleme hatası: {e}")
 
     def select_window_dialog(self):
-        """Açık pencereleri listeler ve seçtirir"""
+        """Kullanıcının listeden pencere seçmesini sağlayan arayüz"""
         try:
             import pygetwindow as gw
-            titles = [t for t in gw.getAllTitles() if t.strip()]
             
-            if not titles:
-                self.update_log("⚠️ Pencere listesi boş! (İzin gerekebilir)")
-                titles = ["Metin2", "Game"] # Fallback
+            # Seçim Penceresi
+            selector = ctk.CTkToplevel(self)
+            selector.title("Hedef Pencereyi Seç")
+            selector.geometry("400x500")
+            selector.resizable(False, False)
+            selector.attributes("-topmost", True)
+            selector.grab_set() 
             
-            dialog = ctk.CTkInputDialog(text="Hedef Pencere Başlığını Yazın (Tam Adı):", title="Pencere Seç")
-            # Not: CTkInputDialog basit bir input box'dır. Combobox'lı pop-up yapmak daha uzun sürer, şimdilik manuel giriş veya basit seçim yeterli.
-            # Kullanıcı kolaylığı için en yaygın olanı titles'dan seçtirebilirdik ama CTk'da hazır Listbox Dialog yok.
-            # Basit Input Dialog ile başlayalım, kullanıcı pencere adını yazsın.
+            ctk.CTkLabel(selector, text="Lütfen listeden oyun penceresini seçin:", font=("Arial", 14, "bold")).pack(pady=10)
             
-            user_input = dialog.get_input()
+            scroll = ctk.CTkScrollableFrame(selector, width=350, height=400)
+            scroll.pack(fill="both", expand=True, padx=10, pady=5)
             
-            if user_input:
+            def on_select(selected_title):
                 try:
-                    wins = gw.getWindowsWithTitle(user_input)
+                    self.bot.window_title = selected_title
+                    wins = gw.getWindowsWithTitle(selected_title)
                     if wins:
                         win = wins[0]
-                        # Pencereyi bulduk
+                        # Title bar'ı hesaba kat (Genelde üstten 30px, eğer pencere moduysa)
+                        # Tam ekransa 0 olabilir ama güvenli alan için 30px düşelim.
                         monitor = {
-                            "top": win.top + 30, # Title bar payı
-                            "left": win.left,
+                            "top": win.top + 30 if win.top >= 0 else 30, 
+                            "left": win.left if win.left >= 0 else 0,
                             "width": win.width,
                             "height": win.height - 30
                         }
                         
-                        # Bot monitorünü güncelle
-                        if self.bot:
-                            self.bot.monitor = monitor
+                        self.bot.monitor = monitor
                         
-                        self.monitor_info.configure(text=f"Seçili: {win.title}\n{monitor['width']}x{monitor['height']}")
-                        self.update_log(f"✅ Pencere seçildi: {win.title}")
+                        # GUI'yi güncelle
+                        if hasattr(self, 'monitor_info'):
+                             self.monitor_info.configure(text=f"Seçili: {selected_title[:20]}...\n{monitor['width']}x{monitor['height']}")
+                        
+                        self.update_log(f"✅ Pencere seçildi: {selected_title}")
+                        self.update_log(f"  > Konum: {monitor['left']}x{monitor['top']}")
                         
                         # Config'e kaydet
-                        self.inventory_manager.config.config["bot_settings"]["scan_area"] = monitor
-                        self.inventory_manager.config.save_config()
+                        if hasattr(self.inventory_manager, 'config'):
+                            self.inventory_manager.config.config["bot_settings"]["scan_area"] = monitor
+                            self.inventory_manager.config.save_config()
                     else:
-                        self.update_log("❌ Pencere bulunamadı!")
+                        self.update_log("⚠️ Pencere bulundu ama erişilemedi.")
+                        
+                    selector.destroy()
                 except Exception as e:
-                    self.update_log(f"Hata: {e}")
+                    self.update_log(f"Seçim hatası: {e}")
+                    selector.destroy()
+
+            # Pencereleri Listele
+            try:
+                windows = gw.getAllTitles()
+            except:
+                windows = []
+
+            found_count = 0
+            
+            # Kendimizi listeden çıkaralım
+            my_title = self.title()
+
+            for title in windows:
+                if not title.strip(): continue
+                if title == my_title: continue 
+
+                # Öncelikli (Metin2 geçenler)
+                is_priority = "Metin2" in title or "Game" in title or "Metin" in title
+                color = "#2ecc71" if is_priority else "#34495e"
+                hover = "#27ae60" if is_priority else "#2c3e50"
+                
+                # Buton oluştur
+                btn = ctk.CTkButton(scroll, text=title, anchor="w", fg_color=color, hover_color=hover,
+                                    command=lambda t=title: on_select(t))
+                btn.pack(fill="x", pady=2)
+                found_count += 1
+                
+            if found_count == 0:
+                ctk.CTkLabel(scroll, text="⚠️ Hiçbir pencere bulunamadı!").pack(pady=20)
+                
+            btn_cancel = ctk.CTkButton(selector, text="İptal", fg_color="red", command=selector.destroy)
+            btn_cancel.pack(pady=10)
 
         except ImportError:
-            self.update_log("❌ pygetwindow modülü eksik!")
+            self.update_log("❌ pygetwindow eksik!")
         except Exception as e:
             self.update_log(f"Genel Hata: {e}")
 
