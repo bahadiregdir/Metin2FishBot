@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Metin2 FishBot - Live Color Picker (OpenCV'siz Versiyon)
+Metin2 FishBot - Live Color Picker (Freeze Özellikli)
 Mouse'un altındaki pikselin HSV kodlarını gösterir.
+SPACE = Değeri dondur ve kaydet
+ENTER = Devam et
 """
 
 import colorsys
 import time
 import sys
+import os
 
 try:
     import pyautogui
@@ -17,81 +20,139 @@ except ImportError:
     input("Devam etmek için Enter'a bas...")
     sys.exit(1)
 
+try:
+    from pynput import keyboard
+    HAS_KEYBOARD = True
+except ImportError:
+    HAS_KEYBOARD = False
+    print("NOT: 'pynput' yüklü değil. Manuel freeze için CTRL+C kullan.")
+    print("Otomatik freeze için: pip install pynput")
+    print()
+
 def rgb_to_hsv_opencv_format(r, g, b):
-    """
-    RGB'den HSV'ye dönüştürür (OpenCV formatında)
-    OpenCV HSV aralıkları:
-    - H: 0-180 (Hue)
-    - S: 0-255 (Saturation)
-    - V: 0-255 (Value)
-    """
-    # colorsys 0-1 arası değer kullanır
+    """RGB'den HSV'ye dönüştürür (OpenCV formatında)"""
     h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-    
-    # OpenCV formatına çevir
-    h_cv = int(h * 180)  # 0-180
-    s_cv = int(s * 255)  # 0-255
-    v_cv = int(v * 255)  # 0-255
-    
+    h_cv = int(h * 180)
+    s_cv = int(s * 255)
+    v_cv = int(v * 255)
     return h_cv, s_cv, v_cv
 
-print("=" * 60)
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+print("=" * 70)
 print("METIN2 FISHBOT - RENK OKUYUCU (HSV)")
-print("=" * 60)
+print("=" * 70)
 print()
 print("KULLANIM:")
-print("1. Bu programı çalıştır.")
-print("2. Oyunu aç ve Minigame'e git.")
-print("3. Mouse'u KIRMIZI DAİRENİN üzerine getir.")
-print("   -> Terminal'de H, S, V değerlerini not et.")
-print("4. Mouse'u BALIĞIN üzerine getir.")
-print("   -> Terminal'de H, S, V değerlerini not et.")
-print("5. Çıkmak için Ctrl+C bas.")
+print("1. Mouse'u KIRMIZI DAİRENİN üzerine götür.")
+print("2. SPACE tuşuna bas (Değer donacak).")
+print("3. Kaydet ve ENTER'a bas.")
+print("4. Mouse'u BALIĞIN üzerine götür.")
+print("5. SPACE + ENTER.")
+print("6. Tüm değerleri bana gönder.")
 print()
-print("=" * 60)
+if HAS_KEYBOARD:
+    print("KONTROLLER:")
+    print("  SPACE  = Değeri dondur")
+    print("  ENTER  = Devam et")
+    print("  ESC    = Çıkış")
+else:
+    print("KONTROLLER:")
+    print("  CTRL+C = Programı durdur")
 print()
-print("Başlatılıyor...")
-time.sleep(2)
+print("=" * 70)
+
+saved_values = []
+freeze = False
+current_h, current_s, current_v = 0, 0, 0
+
+if HAS_KEYBOARD:
+    def on_press(key):
+        global freeze
+        try:
+            if key == keyboard.Key.space:
+                freeze = True
+            elif key == keyboard.Key.esc:
+                return False  # Stop listener
+        except:
+            pass
+    
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
+print("\nProgram başladı... (Mouse'u hareket ettir)")
+print()
 
 try:
     while True:
-        # Mouse pozisyonu al
-        x, y = pyautogui.position()
-        
-        # Ekran görüntüsü (sadece 1x1 piksel)
-        screenshot = pyautogui.screenshot(region=(x, y, 1, 1))
-        
-        # RGB renk
-        r, g, b = screenshot.getpixel((0, 0))
-        
-        # HSV'ye çevir (OpenCV formatında)
-        h, s, v = rgb_to_hsv_opencv_format(r, g, b)
-        
-        # Terminale yazdır (üzerine yaz)
-        output = f"\rMOUSE: ({x:4}, {y:4}) | RGB: ({r:3}, {g:3}, {b:3}) | HSV: [H:{h:3}, S:{s:3}, V:{v:3}] <-- BU KODLARI KAYDET"
-        sys.stdout.write(output)
-        sys.stdout.flush()
-        
-        time.sleep(0.05)  # 50ms bekle
+        if not freeze:
+            x, y = pyautogui.position()
+            screenshot = pyautogui.screenshot(region=(x, y, 1, 1))
+            r, g, b = screenshot.getpixel((0, 0))
+            current_h, current_s, current_v = rgb_to_hsv_opencv_format(r, g, b)
+            
+            output = f"\r🔍 TARAMA... | RGB:({r:3},{g:3},{b:3}) | HSV:[H:{current_h:3}, S:{current_s:3}, V:{current_v:3}] <-- BURADA SPACE BAS"
+            sys.stdout.write(output)
+            sys.stdout.flush()
+            
+            time.sleep(0.1)
+        else:
+            # Freeze modu - Değer sabitlendi
+            clear_screen()
+            print("=" * 70)
+            print("✅ DEĞER SABİTLENDİ!")
+            print("=" * 70)
+            print()
+            print(f"  H (Hue):        {current_h}")
+            print(f"  S (Saturation): {current_s}")
+            print(f"  V (Value):      {current_v}")
+            print()
+            print("=" * 70)
+            
+            # Kullanıcıdan isim al
+            name = input("Bu hangi nesne? (örn: 'Kırmızı Daire' veya 'Balık'): ").strip()
+            if name:
+                saved_values.append({
+                    'name': name,
+                    'h': current_h,
+                    's': current_s,
+                    'v': current_v
+                })
+                print(f"✅ '{name}' kaydedildi!")
+            
+            print()
+            devam = input("Başka renk ölçmek ister misin? (e/h): ").strip().lower()
+            
+            if devam != 'e':
+                break
+            
+            freeze = False
+            print("\nDevam ediliyor...")
+            time.sleep(1)
         
 except KeyboardInterrupt:
-    print("\n")
-    print("=" * 60)
-    print("Program kapatıldı.")
-    print("=" * 60)
+    pass
+
+# Sonuçları göster
+clear_screen()
+print("=" * 70)
+print("📊 ÖLÇÜM SONUÇLARI")
+print("=" * 70)
+print()
+
+if saved_values:
+    for i, val in enumerate(saved_values, 1):
+        print(f"{i}. {val['name']}:")
+        print(f"   H: {val['h']}")
+        print(f"   S: {val['s']}")
+        print(f"   V: {val['v']}")
+        print()
+else:
+    print("Hiçbir değer kaydedilmedi.")
     print()
-    print("NOT ETTİĞİN DEĞERLERİ BENİMLE PAYLAŞ:")
-    print()
-    print("Kırmızı Daire için:")
-    print("- H: ...")
-    print("- S: ...")
-    print("- V: ...")
-    print()
-    print("Balık için:")
-    print("- H: ...")
-    print("- S: ...")
-    print("- V: ...")
-    print()
-    print("=" * 60)
-    input("Enter'a basarak kapat...")
-    sys.exit(0)
+
+print("=" * 70)
+print("BU DEĞERLERE BANA GÖNDER (Kopyala-yapıştır yapabilirsin)")
+print("=" * 70)
+input("\nEnter'a basarak kapat...")
