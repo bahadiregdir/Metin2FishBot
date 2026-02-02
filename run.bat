@@ -1,8 +1,9 @@
 @echo off
+cd /d "%~dp0"
 title Metin2 FishBot
 color 0E
 
-if not exist "venv" (
+if not exist "%~dp0venv" (
     color 0C
     echo [HATA] Kurulum yapilmamis!
     echo Lutfen once 'INSTALL.bat' dosyasini calistirin.
@@ -11,8 +12,10 @@ if not exist "venv" (
 )
 
 echo Bot baslatiliyor... Lutfen bekleyin...
-call venv\Scripts\activate
-python src/gui.py
+echo Dizini: %~dp0
+echo.
+
+"%~dp0venv\Scripts\python.exe" "%~dp0src\gui.py"
 
 if %errorlevel% neq 0 (
     color 0C
