@@ -321,6 +321,7 @@ class App(ctk.CTk):
         # Bot'a modülleri bağla (Entegrasyon)
         self.bot.fish_stats = self.fish_stats
         self.bot.sound_alert = self.sound_alert
+        self.bot.inventory_manager = self.inventory_manager
         self.bot.gui_start_callback = self.toggle_bot  # Telegram /start için
 
         # Balık Listesini Yükle (sound_alert tanımlı olmalı)

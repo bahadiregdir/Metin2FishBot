@@ -57,6 +57,7 @@ class BotSettings:
     ANIMATION_WAIT_BASE = 2.0    # Olta atma animasyonu temel süre
     REACTION_DELAY_MIN = 0.4     # Tıklama sonrası bekleme min
     REACTION_DELAY_MAX = 0.8     # Tıklama sonrası bekleme max
+    WORM_REFILL_THRESHOLD = 180  # Kaç olta atışında bir yem yenilensin (1 Paket = 200)
     
     # Varsayılanlar
     DEFAULT_MONITOR = {"top": 0, "left": 0, "width": 800, "height": 600}
@@ -79,6 +80,7 @@ class BotCore:
         self.stats = {"caught": 0, "missed": 0, "casts": 0}
         self.start_timestamp = 0
         self.next_inv_check = random.randint(4, 7)
+        self.worm_counter = 0  # Yem Sayacı
 
         # Config Yükleme (Telegram Dahil)
         self.telegram = TelegramNotifier(None, None)
@@ -86,6 +88,7 @@ class BotCore:
         # GUI Entegrasyonu (dışardan set edilir)
         self.fish_stats = None      # FishStats referansı
         self.sound_alert = None     # SoundAlert referansı
+        self.inventory_manager = None # Inventory Manager referansı (Yem için)
         self.gui_start_callback = None  # Telegram /start komutu için
         
         self.reload_config()
@@ -592,9 +595,18 @@ class BotCore:
                     pydirectinput.press('space')
                     self.stats["casts"] += 1
                     
+                    # Yem Yenileme Kontrolü (Solucan)
+                    self.worm_counter += 1
+                    if self.inventory_manager and self.worm_counter >= BotSettings.WORM_REFILL_THRESHOLD:
+                        self.log("🪱 Yem yenileniyor...")
+                        self._refill_bait_routine()
+                        self.worm_counter = 0
+
                     # Olta atma animasyonu bekleme
                     base = BotSettings.ANIMATION_WAIT_BASE
                     self.sleep_random(base, base + 0.5)
+
+
                     
                     self.state = "WAITING"
                     self.wait_start_time = time.time() # Zaman ölçümü başla
@@ -919,6 +931,29 @@ class BotCore:
 
         except Exception as e:
             pass # Hata olursa botu durdurma, devam et
+            
+        return False
+        
+    def _refill_bait_routine(self):
+        """Envanteri açıp yem yeniler ve kapatır"""
+        try:
+            # Envanteri Aç (I tuşu standarttır)
+            pydirectinput.press('i')
+            time.sleep(1.0) # Animasyon bekle
+            
+            # Inventory Manager ile işlem yap
+            # Tüm ekranın monitör bilgisini veriyoruz
+            if self.inventory_manager:
+                success = self.inventory_manager.replenish_bait(self.monitor)
+                if not success:
+                    self.log("⚠️ Yem bulunamadı veya işlem yapılamadı.")
+            
+            # Envanteri Kapat
+            pydirectinput.press('i')
+            time.sleep(0.5)
+            
+        except Exception as e:
+            self.log(f"Yem yenileme hatası: {e}")
             
         return False
 

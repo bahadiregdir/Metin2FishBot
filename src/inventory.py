@@ -72,7 +72,7 @@ class FishDatabase:
     # Kullanıcı Ayarları (Varsayılan)
     # Action: 'keep' (Sakla), 'drop' (At), 'open' (Aç/Sağ Tık), 'kill' (Öldür/Sağ Tık)
     DEFAULT_ACTIONS = {key: "keep" for key in FISH_DATA.keys()}
-    DEFAULT_ACTIONS["worm"] = "assign" # Özel Aksiyon: Kısayola Ata
+    DEFAULT_ACTIONS["worm"] = "keep" # Özel Aksiyon: Sadece replenish_bait çağrıldığında atanır
     
     # Çöpleri Otomatik Yere At
     DEFAULT_ACTIONS["minnow"] = "kill" # Genelde ölürse yem olur
@@ -293,17 +293,60 @@ class InventoryManager:
                 # Boş slot genelde koyu grid rengidir. Dolu slot renklidir.
                 if np.std(slot_img) < 10: # Düşük varyans = Muhtemelen boş
                     continue
-                    
-                # Bilinen bir eşya mı? (Template Matching ile kontrol edilebilir ama pahalı)
-                # Şimdilik sadece "Bu slot dolu" diye kaydedelim, kullanıcıya soracağız.
-                
-                # Dosya Adı: unknown_page1_r2_c3.png
-                filename = f"unknown_{r}_{c}_{int(time.time())}.png"
-                filepath = os.path.join(unknown_dir, filename)
-                cv2.imwrite(filepath, slot_img)
-                unknowns.append(filepath)
-                
         return unknowns
+
+    def replenish_bait(self, inventory_region, bait_name="worm"):
+        """Envanterde yem arar ve hotbar'a atar."""
+        if not inventory_region: return False
+        
+        # Ekran görüntüsü
+        import mss
+        import numpy as np
+        import cv2
+        import os
+        import time
+        
+        with mss.mss() as sct:
+            sct_img = sct.grab(inventory_region)
+            img = np.array(sct_img)
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            
+        print(f"🪱 Yem yenileniyor: {bait_name} aranıyor...")
+        
+        # Template Matching
+        template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                                   "assets", "fish_icons", f"{bait_name}.png") # worm.png olarak varsayıyoruz
+        # Eğer ikon veritabanında başka ise db'den alalım
+        db_icon = self.db.FISH_DATA.get(bait_name, {}).get("icon")
+        if db_icon:
+             template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+                                   "assets", "fish_icons", db_icon)
+                                   
+        if not os.path.exists(template_path):
+            print(f"❌ Yem ikonu bulunamadı: {template_path}")
+            return False
+            
+        template = cv2.imread(template_path, cv2.IMREAD_COLOR)
+        if template is None: return False
+        
+        res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
+        loc = np.where(res >= self.confidence_threshold)
+        patterns = list(zip(*loc[::-1]))
+        
+        if not patterns:
+            print("❌ Envanterde hiç yem bulunamadı!")
+            return False
+            
+        # İlk bulunan yemi al
+        pt = patterns[0]
+        h, w = template.shape[:2]
+        center_x = inventory_region["left"] + pt[0] + w // 2
+        center_y = inventory_region["top"] + pt[1] + h // 2
+        
+        # Eylem: Assign (CTRL + Click)
+        self.execute_action("assign", center_x, center_y) # Changed from perform_action to execute_action
+        print("✅ Yem yenilendi.")
+        return True
 
     def learn_item(self, temp_path, item_key):
         """Bilinmeyen bir eşyayı (temp_path) asıl kütüphaneye (item_key) taşır"""
