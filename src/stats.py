@@ -16,21 +16,65 @@ class FishStats:
         
     def load_stats(self):
         """Kayıtlı istatistikleri yükle"""
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except:
-                pass
-        
-        return {
+        stats = {
             "total_fish": 0,
             "total_sessions": 0,
             "total_time_seconds": 0,
             "fish_by_type": {},
             "best_session_fish": 0,
-            "last_session_date": None
+            "last_session_date": None,
+            "hourly_stats": {str(h): 0 for h in range(24)} # Saatlik döküm (0-23)
         }
+        
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    stats.update(data)
+                    
+                    # Eski kayıtlarda hourly_stats yoksa ekle
+                    if "hourly_stats" not in stats:
+                        stats["hourly_stats"] = {str(h): 0 for h in range(24)}
+                        
+                    return stats
+            except:
+                pass
+        
+        return stats
+
+    def record_fish(self, fish_type: str):
+        """Tutulan balığı kaydet"""
+        self.session_fish[fish_type] += 1
+        self.total_stats["total_fish"] += 1
+        
+        if fish_type not in self.total_stats["fish_by_type"]:
+            self.total_stats["fish_by_type"][fish_type] = 0
+        self.total_stats["fish_by_type"][fish_type] += 1
+        
+        # Saatlik İstatistik
+        current_hour = str(datetime.now().hour)
+        if "hourly_stats" not in self.total_stats:
+            self.total_stats["hourly_stats"] = {str(h): 0 for h in range(24)}
+        
+        if current_hour not in self.total_stats["hourly_stats"]:
+             self.total_stats["hourly_stats"][current_hour] = 0
+             
+        self.total_stats["hourly_stats"][current_hour] += 1
+        
+        # Her 10 balıkta bir kaydet
+        if self.total_stats["total_fish"] % 10 == 0:
+            self.save_stats()
+            
+    def get_hourly_data(self):
+        """Saatlik verileri döndür (En yoğundan aza doğru sıralı)"""
+        if "hourly_stats" not in self.total_stats:
+             return []
+             
+        data = self.total_stats["hourly_stats"]
+        # (Saat, Adet) listesi
+        result = [{"hour": int(k), "count": v} for k, v in data.items()]
+        result.sort(key=lambda x: x["hour"]) # Saate göre sırala
+        return result
     
     def save_stats(self):
         """İstatistikleri kaydet"""
@@ -59,18 +103,7 @@ class FishStats:
             self.save_stats()
             self.session_start = None
     
-    def record_fish(self, fish_type: str):
-        """Tutulan balığı kaydet"""
-        self.session_fish[fish_type] += 1
-        self.total_stats["total_fish"] += 1
-        
-        if fish_type not in self.total_stats["fish_by_type"]:
-            self.total_stats["fish_by_type"][fish_type] = 0
-        self.total_stats["fish_by_type"][fish_type] += 1
-        
-        # Her 10 balıkta bir kaydet
-        if self.total_stats["total_fish"] % 10 == 0:
-            self.save_stats()
+
     
     def get_session_duration(self):
         """Bu oturumun süresi (saniye)"""

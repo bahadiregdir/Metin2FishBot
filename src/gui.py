@@ -398,6 +398,16 @@ class App(ctk.CTk):
         self.stat_top_fish = ctk.CTkLabel(total_frame, text="🏆 En Çok: -", font=ctk.CTkFont(size=12))
         self.stat_top_fish.pack(anchor="w", padx=20, pady=(0, 10))
         
+        # Saatlik Verimlilik
+        hourly_frame = ctk.CTkFrame(frame)
+        hourly_frame.pack(fill="x", padx=20, pady=10)
+        ctk.CTkLabel(hourly_frame, text="🕒 Saatlik Verimlilik (Heatmap)", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=5)
+        
+        self.hourly_text = ctk.CTkTextbox(hourly_frame, height=100)
+        self.hourly_text.pack(fill="x", padx=10, pady=5)
+        self.hourly_text.insert("0.0", "Veri toplanıyor...")
+        self.hourly_text.configure(state="disabled")
+
         # Yenile Butonu
         ctk.CTkButton(frame, text="🔄 Yenile", command=self.refresh_stats_display).pack(pady=20)
     
@@ -477,6 +487,26 @@ class App(ctk.CTk):
             self.stat_session_revenue.configure(text=f"💰 Kazanç: {won:.2f} Won ({total_revenue:.1f}m)")
         else:
             self.stat_session_revenue.configure(text=f"💰 Kazanç: {total_revenue:.1f} m")
+
+        # Saatlik veri
+        try:
+            hourly_data = self.fish_stats.get_hourly_data()
+            if hourly_data:
+                txt = "Saat  | Balık Sayısı\n" + "-"*30 + "\n"
+                has_data = False
+                for item in hourly_data:
+                     if item["count"] > 0:
+                         hour_str = f"{item['hour']:02d}:00 - {item['hour']+1:02d}:00"
+                         txt += f"{hour_str} -> {item['count']} balık\n"
+                         has_data = True
+                
+                if not has_data: txt = "Henüz yeterli veri yok."
+                
+                self.hourly_text.configure(state="normal")
+                self.hourly_text.delete("0.0", "end")
+                self.hourly_text.insert("0.0", txt)
+                self.hourly_text.configure(state="disabled")
+        except: pass
     
     def enable_scheduler(self):
         """Zamanlayıcıyı etkinleştir"""
