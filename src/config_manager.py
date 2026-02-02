@@ -91,3 +91,16 @@ class ConfigManager:
     def set_bot_setting(self, key, value):
         self.config["bot_settings"][key] = value
         self.save_config()
+
+    def get_config_value(self, section, key, default=None):
+        """Genel amaçlı config okuyucu"""
+        if section not in self.config:
+            return default
+        return self.config[section].get(key, default)
+
+    def set_config_value(self, section, key, value):
+        """Genel amaçlı config yazıcı"""
+        if section not in self.config:
+            self.config[section] = {}
+        self.config[section][key] = value
+        self.save_config()

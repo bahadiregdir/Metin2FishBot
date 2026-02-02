@@ -108,6 +108,16 @@ class InventoryManager:
             
     def get_action(self, fish_key):
         return self.config.get_fish_action(fish_key, self.db.DEFAULT_ACTIONS.get(fish_key, "keep"))
+
+    def set_price(self, fish_key, price):
+        """Balık fiyatını kaydeder (Milyon cinsinden)"""
+        # Config manager'da 'market_prices' bölümü olmadığı için manuel json yönetimi yapalım
+        # veya ConfigManager'a ekleyelim. ConfigManager daha temiz.
+        self.config.set_config_value("market_prices", fish_key, price)
+
+    def get_price(self, fish_key):
+        """Balık fiyatını getir"""
+        return self.config.get_config_value("market_prices", fish_key, 0.0)
         
     def scan_and_process(self, sct, inventory_region):
         """

@@ -11,6 +11,7 @@ class ReportManager:
     def __init__(self, telegram_notifier=None, stats_manager=None):
         self.telegram = telegram_notifier
         self.stats = stats_manager
+        self.inventory = None
         self.daily_report_enabled = True
         self.session_report_enabled = True
         self.daily_thread = None
@@ -25,6 +26,10 @@ class ReportManager:
     def set_stats(self, stats_manager):
         """Stats manager'ı ayarla"""
         self.stats = stats_manager
+        
+    def set_inventory(self, inventory_manager):
+        """Inventory manager'ı ayarla (Fiyat hesabı için)"""
+        self.inventory = inventory_manager
     
     def start_daily_scheduler(self):
         """Günlük rapor zamanlayıcısını başlat"""
@@ -114,13 +119,30 @@ class ReportManager:
                 for fish, count in top_3:
                     breakdown_text += f"├ {fish}: {count} adet\n"
             
+            # Gelir Hesabı
+            revenue_text = ""
+            if self.inventory and session_summary.get("session_breakdown"):
+                try:
+                    total_rev = 0.0
+                    for k, v in session_summary["session_breakdown"].items():
+                        price = self.inventory.get_price(k)
+                        if price > 0:
+                            total_rev += float(v) * float(price)
+                    
+                    if total_rev > 0:
+                        if total_rev >= 100:
+                            revenue_text = f"\n💰 *Kazanç:* {total_rev/100:.2f} Won ({total_rev:.1f}m)"
+                        else:
+                            revenue_text = f"\n💰 *Kazanç:* {total_rev:.1f} m"
+                except: pass
+
             report = f"""🏁 *Oturum Sona Erdi*
 ⏰ Saat: {now}
 
 📊 *Bu Oturum:*
 ├ Balık: {fish_count} adet
 ├ Süre: {duration}
-└ Hız: {fish_per_hour} balık/saat{breakdown_text}
+└ Hız: {fish_per_hour} balık/saat{revenue_text}{breakdown_text}
 
 📈 *Toplam:* {total_fish} balık
 

@@ -316,6 +316,7 @@ class App(ctk.CTk):
         # Rapor Yöneticisi
         self.report_manager = ReportManager()
         self.report_manager.set_stats(self.fish_stats)
+        self.report_manager.set_inventory(self.inventory_manager)
         
         # Bot'a modülleri bağla (Entegrasyon)
         self.bot.fish_stats = self.fish_stats
@@ -377,7 +378,10 @@ class App(ctk.CTk):
         self.stat_session_time = ctk.CTkLabel(session_frame, text="Süre: 0dk", font=ctk.CTkFont(size=12))
         self.stat_session_time.pack(anchor="w", padx=20)
         self.stat_fish_per_hour = ctk.CTkLabel(session_frame, text="Hız: 0 balık/saat", font=ctk.CTkFont(size=12))
-        self.stat_fish_per_hour.pack(anchor="w", padx=20, pady=(0, 10))
+        self.stat_fish_per_hour.pack(anchor="w", padx=20)
+        
+        self.stat_session_revenue = ctk.CTkLabel(session_frame, text="💰 Kazanç: 0 m", font=ctk.CTkFont(size=12, weight="bold"), text_color="#FFD700")
+        self.stat_session_revenue.pack(anchor="w", padx=20, pady=(0, 10))
         
         # Toplam
         total_frame = ctk.CTkFrame(frame)
@@ -456,6 +460,23 @@ class App(ctk.CTk):
         self.stat_total_sessions.configure(text=f"Toplam Oturum: {s['total_sessions']}")
         self.stat_best_session.configure(text=f"En İyi Oturum: {s['best_session']} balık")
         self.stat_top_fish.configure(text=f"🏆 En Çok: {s['top_fish']}")
+        
+        # --- Gelir Hesabı ---
+        total_revenue = 0.0
+        # s['session_breakdown'] -> {'zander': 5, 'worm': 100}
+        try:
+            for fish_key, count in s.get('session_breakdown', {}).items():
+                price = self.inventory_manager.get_price(fish_key)
+                if price > 0:
+                    total_revenue += float(count) * float(price)
+        except: pass
+            
+        # Formatlama (100m = 1 Won)
+        if total_revenue >= 100:
+            won = total_revenue / 100
+            self.stat_session_revenue.configure(text=f"💰 Kazanç: {won:.2f} Won ({total_revenue:.1f}m)")
+        else:
+            self.stat_session_revenue.configure(text=f"💰 Kazanç: {total_revenue:.1f} m")
     
     def enable_scheduler(self):
         """Zamanlayıcıyı etkinleştir"""
@@ -716,6 +737,28 @@ class App(ctk.CTk):
             option_menu.set(ui_text)
             option_menu.pack(side="right", padx=10)
             
+            # Fiyat Girişi (Yanına 'm' yazısı ile)
+            price_val = self.inventory_manager.get_price(key)
+            price_var = ctk.StringVar(value=str(price_val) if price_val > 0 else "")
+            
+            price_entry = ctk.CTkEntry(frame, width=50, placeholder_text="Fiyat", textvariable=price_var)
+            price_entry.pack(side="right", padx=5)
+            
+            # Kaydetme eventi
+            def save_p(event, k=key, v=price_var):
+                try:
+                    val = v.get().replace(",", ".").strip()
+                    if not val: val = "0"
+                    self.inventory_manager.set_price(k, float(val))
+                    # self.update_log(f"💰 {k} fiyatı güncellendi: {val}m") # Çok spam yaratmasın
+                    self.update_stats() # Anlık güncelle
+                except: pass
+
+            price_entry.bind('<Return>', save_p)
+            price_entry.bind('<FocusOut>', save_p)
+
+            ctk.CTkLabel(frame, text="m", text_color="gray").pack(side="right", padx=(0,5))
+
             # Ses Çal Checkbox
             sound_var = ctk.BooleanVar(value=key in self.sound_alert.alert_fish)
             sound_cb = ctk.CTkCheckBox(frame, text="🔔", width=40, variable=sound_var,
