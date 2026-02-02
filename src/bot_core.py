@@ -74,10 +74,11 @@ class BotCore:
         self.minigame_area = None # Kullanıcı tarafından seçilen özel alan (Sol Üst / Sağ Alt)
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
-        # Balık Rengi (HSV) - SİMSİYAH MODU
-        # Su dokusunu (koyu mavi) elemek için sadece ÇOK KOYU (Siyah) alanları al.
-        self.fish_lower = np.array([0, 0, 0])      # Tam Siyah
-        self.fish_upper = np.array([180, 255, 45]) # Value 45'in altı (Simsiyah)
+        # Balık Rengi (HSV) - SİMSİYAH/KOYU GRİ MODU
+        # Değeri biraz açıyoruz (45 -> 75) çünkü oyun ışığına göre balık tam siyah olmayabilir.
+        # Su dokusu genelde daha parlaktır (>80-90), o yüzden 75 güvenli olmalı.
+        self.fish_lower = np.array([0, 0, 0])      
+        self.fish_upper = np.array([180, 255, 75])
         
         # Minigame Tetikleyicisi (Kırmızı Daire) için kullanılan değerler detect_red_trigger içinde tanımlı.
         
