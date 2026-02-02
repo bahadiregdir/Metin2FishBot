@@ -73,10 +73,12 @@ class BotCore:
         self.monitor = BotSettings.DEFAULT_MONITOR.copy()
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
-        # Balık Rengi (HSV) - KOYU RENK MODU (Görsele göre)
-        # Siyah/Koyu Gri balığı tespit etmek için Value (Parlaklık) üst limitini düşük tutuyoruz.
-        self.fish_lower = np.array([0, 0, 0])      # En koyu (Siyah)
-        self.fish_upper = np.array([180, 255, 90]) # En açık (Koyu Gri) - Value 90'ı geçmesin
+        # Balık Rengi (HSV) - SİMSİYAH MODU
+        # Su dokusunu (koyu mavi) elemek için sadece ÇOK KOYU (Siyah) alanları al.
+        self.fish_lower = np.array([0, 0, 0])      # Tam Siyah
+        self.fish_upper = np.array([180, 255, 45]) # Value 45'in altı (Simsiyah)
+        
+        # Minigame Tetikleyicisi (Kırmızı Daire) için kullanılan değerler detect_red_trigger içinde tanımlı.
         
         self.stats = {"caught": 0, "missed": 0, "casts": 0}
         self.start_timestamp = 0
@@ -777,7 +779,9 @@ class BotCore:
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if contours:
                 largest = max(contours, key=cv2.contourArea)
-                if cv2.contourArea(largest) > 10: # Çok küçük noktalar olmasın
+                
+                # Su dalgalarını elemek için boyutu artırıyoruz (Balık bayağı büyük)
+                if cv2.contourArea(largest) > 120: 
                     M = cv2.moments(largest)
                     if M["m00"] != 0:
                         cX = int(M["m10"] / M["m00"]) + offset_x
