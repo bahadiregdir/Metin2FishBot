@@ -629,102 +629,104 @@ class App(ctk.CTk):
                 self.update_log(f"Yükleme hatası: {e}")
 
     def select_window_dialog(self):
-        """Kullanıcının listeden pencere seçmesini sağlayan arayüz"""
+        """Kullanıcının listeden pencere seçmesini sağlayan arayüz (ID Bazlı)"""
         try:
             import pygetwindow as gw
             
             # Seçim Penceresi
             selector = ctk.CTkToplevel(self)
             selector.title("Hedef Pencereyi Seç")
-            selector.geometry("400x500")
+            selector.geometry("420x550")
             selector.resizable(False, False)
             selector.attributes("-topmost", True)
             selector.grab_set() 
             
-            ctk.CTkLabel(selector, text="Lütfen listeden oyun penceresini seçin:", font=("Arial", 14, "bold")).pack(pady=10)
+            ctk.CTkLabel(selector, text="Lütfen Oyun Penceresini Seçin:", font=("Arial", 14, "bold")).pack(pady=10)
+            ctk.CTkLabel(selector, text="(Yeşil olanlar önerilenlerdir)", font=("Arial", 10), text_color="gray").pack(pady=(0,5))
             
-            scroll = ctk.CTkScrollableFrame(selector, width=350, height=400)
+            scroll = ctk.CTkScrollableFrame(selector, width=380, height=450)
             scroll.pack(fill="both", expand=True, padx=10, pady=5)
             
-            def on_select(selected_title):
+            # --- KRİTİK DEĞİŞİKLİK: OBJEYİ DİREKT AL ---
+            def on_select(target_window):
                 try:
-                    self.bot.window_title = selected_title
-                    # Tüm eşleşenleri getir
-                    wins = gw.getWindowsWithTitle(selected_title)
-                    
-                    target_win = None
-                    my_title = self.title()
-                    
-                    # Filtreleme: Botun kendisi olmayan doğru pencereyi bul
-                    for w in wins:
-                        # Eğer pencere başlığı botun başlığıyla aynıysa atla
-                        if w.title == my_title:
-                            continue
-                        
-                        # Tam eşleşme varsa onu al (En garantisi)
-                        if w.title == selected_title:
-                            target_win = w
-                            break
-                            
-                    # Tam eşleşme bulamazsan, bot olmayan ilk pencereyi al
-                    if target_win is None:
-                        for w in wins:
-                            if w.title != my_title:
-                                target_win = w
-                                break
+                    # Botun kendi penceresi mi kontrolü
+                    if target_window.title == self.title():
+                         self.update_log("⚠️ HATA: Botun kendi penceresini seçemezsiniz!")
+                         return
 
-                    if target_win:
-                        win = target_win
-                        # Title bar'ı hesaba kat
-                        monitor = {
-                            "top": win.top + 30 if win.top >= 0 else 30, 
-                            "left": win.left if win.left >= 0 else 0,
-                            "width": win.width,
-                            "height": win.height - 30
-                        }
-                        
-                        self.bot.monitor = monitor
-                        
-                        if hasattr(self, 'monitor_info'):
-                             self.monitor_info.configure(text=f"Seçili: {win.title[:15]}...\n{monitor['width']}x{monitor['height']}")
-                        
-                        self.update_log(f"✅ Pencere kilitlendi: {win.title}")
-                        self.update_log(f"  > Konum: {monitor['left']}x{monitor['top']}")
-                        
-                        if hasattr(self.inventory_manager, 'config'):
-                            self.inventory_manager.config.config["bot_settings"]["scan_area"] = monitor
-                            self.inventory_manager.config.save_config()
-                    else:
-                        self.update_log("⚠️ Pencere bulundu ama botun kendisiyle karıştı!")
-                        
+                    self.bot.window_title = target_window.title
+                    
+                    # Konumu direkt objeden al (Tekrar aramaya gerek yok!)
+                    monitor = {
+                        "top": target_window.top + 30 if target_window.top >= 0 else 30, 
+                        "left": target_window.left if target_window.left >= 0 else 0,
+                        "width": target_window.width,
+                        "height": target_window.height - 30
+                    }
+                    
+                    self.bot.monitor = monitor
+                    
+                    if hasattr(self, 'monitor_info'):
+                         self.monitor_info.configure(text=f"Seçili: {target_window.title[:15]}...\n{monitor['width']}x{monitor['height']}")
+                    
+                    self.update_log(f"✅ HEDEF KİLİTLENDİ: {target_window.title}")
+                    self.update_log(f"  > ID/Konum: {monitor['left']}x{monitor['top']}")
+                    
+                    # Config'e kaydet
+                    if hasattr(self.inventory_manager, 'config'):
+                        self.inventory_manager.config.config["bot_settings"]["scan_area"] = monitor
+                        self.inventory_manager.config.save_config()
+                    
                     selector.destroy()
+                    
                 except Exception as e:
-                    self.update_log(f"Seçim hatası: {e}")
+                    self.update_log(f"❌ Seçim işlenirken hata: {e}")
                     selector.destroy()
 
-            # Pencereleri Listele
+            # Pencereleri Listele (Objeleri al)
             try:
-                windows = gw.getAllTitles()
+                # getAllWindows() kullanıyoruz!
+                all_windows = gw.getAllWindows()
             except:
-                windows = []
+                all_windows = []
 
             found_count = 0
-            
-            # Kendimizi listeden çıkaralım
             my_title = self.title()
 
-            for title in windows:
-                if not title.strip(): continue
-                if title == my_title: continue 
+            # Listeyi temizleyip sıralayalım
+            priority_wins = []
+            other_wins = []
 
-                # Öncelikli (Metin2 geçenler)
-                is_priority = "Metin2" in title or "Game" in title or "Metin" in title
-                color = "#2ecc71" if is_priority else "#34495e"
-                hover = "#27ae60" if is_priority else "#2c3e50"
-                
-                # Buton oluştur
-                btn = ctk.CTkButton(scroll, text=title, anchor="w", fg_color=color, hover_color=hover,
-                                    command=lambda t=title: on_select(t))
+            for w in all_windows:
+                if not w.title.strip(): continue # İsimsizleri geç
+                if w.title == my_title: continue # Kendimizi geç
+
+                # Öncelikli
+                is_priority = "Metin2" in w.title or "Game" in w.title or "Metin" in w.title
+                if is_priority:
+                    priority_wins.append(w)
+                else:
+                    other_wins.append(w)
+            
+            # --- BUTONLARI OLUŞTUR ---
+            
+            # 1. Öncelikliler
+            for w in priority_wins:
+                # Lambda içinde w=w diyerek o anki objeyi kilitliyoruz (Closure fix)
+                btn = ctk.CTkButton(scroll, text=f"🎯 {w.title}", anchor="w", fg_color="#2ecc71", hover_color="#27ae60",
+                                    height=40, command=lambda win_obj=w: on_select(win_obj))
+                btn.pack(fill="x", pady=2)
+                found_count += 1
+            
+            # Ayıraç
+            if priority_wins and other_wins:
+                 ctk.CTkFrame(scroll, height=2, fg_color="#555").pack(fill="x", pady=5)
+
+            # 2. Diğerleri
+            for w in other_wins:
+                btn = ctk.CTkButton(scroll, text=w.title, anchor="w", fg_color="#34495e", hover_color="#2c3e50",
+                                    height=30, command=lambda win_obj=w: on_select(win_obj))
                 btn.pack(fill="x", pady=2)
                 found_count += 1
                 
