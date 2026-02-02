@@ -64,7 +64,7 @@ class BotSettings:
     DEFAULT_WINDOW_TITLE = "Metin2"
 
 class BotCore:
-    def __init__(self, update_log_callback=None, api_key=None):
+    def __init__(self, update_log_callback=None, api_key=None, inventory_manager=None):
         self.is_running = False
         self.log_callback = update_log_callback
         self.state = "IDLE" 
@@ -88,7 +88,7 @@ class BotCore:
         # GUI Entegrasyonu (dışardan set edilir)
         self.fish_stats = None      # FishStats referansı
         self.sound_alert = None     # SoundAlert referansı
-        self.inventory_manager = None # Inventory Manager referansı (Yem için)
+        self.inventory_manager = inventory_manager # Inventory Manager referansı (Yem için)
         self.gui_start_callback = None  # Telegram /start komutu için
         
         self.reload_config()
