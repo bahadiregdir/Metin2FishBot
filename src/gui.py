@@ -25,6 +25,19 @@ import updater
 ctk.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
+# --- WINDOWS DPI FIX (Bulanıklık ve Koordinat Kaymasını Önler) ---
+try:
+    import ctypes
+    import platform
+    if platform.system() == "Windows":
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except:
+        pass
+# -------------------------------------------------------------
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
