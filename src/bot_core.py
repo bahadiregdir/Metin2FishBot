@@ -673,9 +673,12 @@ class BotCore:
                     img = sct.grab(self.monitor)
                     
                     # 3. Kırmızı Daire Kontrolü (Tetikleyici)
-                    if self.detect_red_trigger(img):
-                         # Kırmızıyı gördük! Şimdi balığı (siyah lekeyi) bulmamız lazım.
-                         fish_pos = self.find_fish(img) # Koyu modda ayarlı zaten
+                    red_center = self.detect_red_trigger(img)
+                    
+                    if red_center:
+                         # Kırmızıyı gördük! Sadece bu dairenin içinde balık ara.
+                         # red_center -> (x, y)
+                         fish_pos = self.find_fish(img, roi_center=red_center, roi_radius=70) 
                          
                          if fish_pos:
                              self.log(f"🔴 KIRMIZI ! -> 🐟 Hedef: {fish_pos}")
@@ -712,47 +715,77 @@ class BotCore:
                     time.sleep(0.01) # Çok hızlı tarama (Refleks için)
 
     def detect_red_trigger(self, img):
-        """Görüntüde Kırmızı Daire/Halka var mı? (Tetikleyici)"""
+        """Görüntüde Kırmızı Daire/Halka var mı? Varsa merkezini döndür."""
         try:
-            # Görüntü dönüşümü
             frame = np.array(img)
-            # MSS BGRA döndürür, OpenCV BGR bekler
+            if frame.shape[2] == 4:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            
+            # Kırmızı Renk Maskeleme (Private Server Ayarı)
+            lower1 = np.array([0, 100, 100])
+            upper1 = np.array([10, 255, 255])
+            lower2 = np.array([170, 100, 100])
+            upper2 = np.array([180, 255, 255])
+            mask = cv2.addWeighted(cv2.inRange(hsv, lower1, upper1), 1.0, cv2.inRange(hsv, lower2, upper2), 1.0, 0.0)
+            
+            kernel = np.ones((3,3), np.uint8)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            
+            # Kontur bul (Merkez için şart)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                if cv2.contourArea(largest) > 200: # Yeterli büyüklükte kırmızı
+                    M = cv2.moments(largest)
+                    if M["m00"] != 0:
+                        cX = int(M["m10"] / M["m00"])
+                        cY = int(M["m01"] / M["m00"])
+                        return (cX, cY)
+            return None
+        except:
+            return None
+
+    def find_fish(self, img, roi_center=None, roi_radius=60):
+        """Balığı (Maskelenmiş alanı) bulur. roi_center verilirse sadece oraya bakar."""
+        try:
+            frame = np.array(img)
+            # Eğer ROI verildiyse görüntüyü kırp (Sanal olarak)
+            offset_x, offset_y = 0, 0
+            
+            if roi_center:
+                cx, cy = roi_center
+                x1 = max(0, cx - roi_radius)
+                y1 = max(0, cy - roi_radius)
+                x2 = min(frame.shape[1], cx + roi_radius)
+                y2 = min(frame.shape[0], cy + roi_radius)
+                
+                frame = frame[y1:y2, x1:x2]
+                offset_x, offset_y = x1, y1
+
             if frame.shape[2] == 4:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-            # Kırmızı Renk Maskeleme (İki aralık)
-            # Private Server'daki kırmızının tonu (Genelde parlak kırmızı)
-            # 0-10 ve 170-180 arası
+            mask = cv2.inRange(hsv, self.fish_lower, self.fish_upper)
             
-            lower1 = np.array([0, 100, 100])
-            upper1 = np.array([10, 255, 255])
-            
-            lower2 = np.array([170, 100, 100])
-            upper2 = np.array([180, 255, 255])
-            
-            mask1 = cv2.inRange(hsv, lower1, upper1)
-            mask2 = cv2.inRange(hsv, lower2, upper2)
-            mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
-            
-            # Gürültü temizleme (Küçük noktaları yok et)
+            # Gürültü ve yumuşatma
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
-            # Yeterince kırmızı piksel var mı?
-            # Kontur bulmak yerine sadece piksel sayısına bakmak çok daha hızlıdır! (Refleks için ideal)
-            red_pixels = cv2.countNonZero(mask)
-            
-            # Eşik Değer: Minigame dairesi yandığında hatrı sayılır bir alan kırmızı olur.
-            # Çok küçük değerler gürültü olabilir.
-            if red_pixels > 200: 
-                return True
-                
-            return False
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                if cv2.contourArea(largest) > 10: # Çok küçük noktalar olmasın
+                    M = cv2.moments(largest)
+                    if M["m00"] != 0:
+                        cX = int(M["m10"] / M["m00"]) + offset_x
+                        cY = int(M["m01"] / M["m00"]) + offset_y
+                        return (cX, cY)
+            return None
         except Exception as e:
-            # self.log(f"Red trigger error: {e}")
-            return False
+            return None
 
 
     def process_inventory(self, sct):
