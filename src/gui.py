@@ -214,9 +214,17 @@ class App(ctk.CTk):
 
 
         # Ayarları Yükle
-        defaults = self.inventory_manager.config.DEFAULT_CONFIG["bot_settings"]
-        cfg = self.inventory_manager.config.config.get("bot_settings", defaults)
-        limits = self.inventory_manager.config.config.get("stop_conditions", {"max_time_min": 0, "max_fish": 0})
+        try:
+            defaults = self.inventory_manager.config.DEFAULT_CONFIG["bot_settings"]
+            current_config = getattr(self.inventory_manager.config, 'config', {})
+            if current_config is None: current_config = {}
+            
+            cfg = current_config.get("bot_settings", defaults)
+            limits = current_config.get("stop_conditions", {"max_time_min": 0, "max_fish": 0})
+        except Exception as e:
+            print(f"⚠️ Ayar yükleme hatası: {e}")
+            cfg = defaults
+            limits = {"max_time_min": 0, "max_fish": 0}
 
         # Cast Range
         self.cast_min = cfg.get("cast_delay_min", 2.0)
