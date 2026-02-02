@@ -56,14 +56,18 @@ python src/gui.py
 3. [@userinfobot](https://t.me/userinfobot) ile Chat ID öğrenin
 4. Gelişmiş ayarlardan girin
 
-## 🎮 Kısayol Tuşları
-
-| Tuş | İşlev |
-|-----|-------|
-| F9 | Bot Başlat/Durdur |
-| F10 | Acil Durdurma |
 | F11 | Ekran Görüntüsü |
 | F12 | 5 Dakika Mola |
+
+## 🛡️ İleri Düzey Özellikler (Crash & Revive)
+
+Botun **Otomatik Canlanma** ve **Crash Algılama** özelliklerini kullanabilmek için `src/assets/system/` içine aşağıdaki ekran görüntülerini eklemelisiniz:
+
+1. **restart_here.png** → Karakter öldüğünde çıkan "Burada Yeniden Başla" butonu.
+2. **disconnect.png** → "Sunucu Bağlantısı Koptu" veya hata penceresi.
+3. **login_check.png** → Login ekranından sabit bir parça.
+
+> **Not:** Windows'ta ekran görüntüsü alıp (Windows+Shift+S) sadece ilgili butonu/yazıyı kırparak ekleyin. Bot otomatik tanıyacaktır.
 
 ## 📁 Proje Yapısı
 

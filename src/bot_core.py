@@ -564,6 +564,23 @@ class BotCore:
         with sct_manager() as sct:
             while self.is_running:
                 
+                if IS_WINDOWS:
+                    # Görseli al
+                    try:
+                        screenshot = sct.grab(self.monitor)
+                        img = np.array(screenshot)
+                        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+                    except Exception as e:
+                        self.log(f"Ekran alma hatası: {e}")
+                        time.sleep(1)
+                        continue
+
+                    # --- SİSTEM KONTROLLERİ (Ölüm, Crash) ---
+                    if self.check_system_events(img):
+                        time.sleep(2) # Olay olduysa bekle
+                        continue
+                    # ----------------------------------------
+
                 if self.check_stop_conditions():
                     break
                     
@@ -840,6 +857,70 @@ class BotCore:
     def stop(self):
         self.is_running = False
         self.log("Bot durduruldu.")
+
+    def check_system_events(self, img):
+        """Kritik sistem olaylarını kontrol et (Ölüm, Crash, Login)"""
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            sys_dir = os.path.join(current_dir, "assets", "system")
+            
+            # 1. Ölüm Kontrolü (restart_here.png)
+            restart_path = os.path.join(sys_dir, "restart_here.png")
+            if os.path.exists(restart_path):
+                template = cv2.imread(restart_path, cv2.IMREAD_COLOR)
+                if template is not None:
+                    res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                    
+                    if max_val > 0.8:
+                        self.log("💀 KARAKTER ÖLDÜ! 15sn soğuma süresi bekleniyor...")
+                        time.sleep(15) # Soğuma süresi
+                        
+                        # Butonun ortasına tıkla
+                        h, w = template.shape[:2]
+                        cx = self.monitor["left"] + max_loc[0] + w // 2
+                        cy = self.monitor["top"] + max_loc[1] + h // 2
+                        
+                        pydirectinput.click(cx, cy)
+                        self.log("❤️ Karakter canlandırıldı.")
+                        
+                        if hasattr(self, 'telegram') and self.telegram and self.telegram.enabled:
+                            self.telegram.send_message("💀 Karakter Öldü! Otomatik canlandırıldı.")
+                            
+                        time.sleep(5) # Ayağa kalkma süresi
+                        return True
+
+            # 2. Crash/Disconnect Kontrolü (disconnect.png)
+            disc_path = os.path.join(sys_dir, "disconnect.png")
+            if os.path.exists(disc_path):
+                template = cv2.imread(disc_path, cv2.IMREAD_COLOR)
+                if template is not None:
+                    res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                    
+                    if max_val > 0.8:
+                        self.log("⚠️ KRİTİK: Oyun Bağlantısı Koptu!")
+                        if hasattr(self, 'telegram') and self.telegram and self.telegram.enabled:
+                            self.telegram.send_message("⚠️ Oyun Bağlantısı Koptu! Bot durduruluyor.")
+                        self.stop()
+                        return True
+                        
+            # 3. Login Ekranı Kontrolü (login_check.png)
+            login_path = os.path.join(sys_dir, "login_check.png")
+            if os.path.exists(login_path):
+                template = cv2.imread(login_path, cv2.IMREAD_COLOR)
+                if template is not None:
+                    res = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
+                    _, max_val, _, _ = cv2.minMaxLoc(res)
+                    if max_val > 0.8:
+                        self.log("⚠️ KRİTİK: Login ekranına düşüldü!")
+                        self.stop()
+                        return True
+
+        except Exception as e:
+            pass # Hata olursa botu durdurma, devam et
+            
+        return False
 
 if __name__ == "__main__":
     # Test
