@@ -119,10 +119,14 @@ class App(ctk.CTk):
         # Pencere Seçimi
         self.win_btn = ctk.CTkButton(self.sidebar_frame, text="🖥 Pencere Seç", fg_color="#445566", command=self.select_window_dialog)
         self.win_btn.grid(row=3, column=0, padx=20, pady=5)
+
+        # Minigame Alanı Tanıt (YENİ)
+        self.minigame_btn = ctk.CTkButton(self.sidebar_frame, text="🎯 Minigame Tanıt", fg_color="#D81B60", hover_color="#AD1457", command=self.define_minigame_area)
+        self.minigame_btn.grid(row=4, column=0, padx=20, pady=5)
         
         # --- Multi-Account Bölümü (Opsiyonel) ---
         self.account_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        self.account_frame.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+        self.account_frame.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
         
         ctk.CTkLabel(self.account_frame, text="📋 Hesaplar", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
         
@@ -1476,6 +1480,59 @@ class App(ctk.CTk):
                 
             except Exception as e:
                 self.update_log(f"Görsel yükleme hatası: {e}")
+
+    def define_minigame_area(self):
+        """Kullanıcıya interaktif olarak Minigame alanını seçtirir"""
+        if not self.bot.is_running:
+             from tkinter import messagebox
+             
+             # Yardımcı Sınıf
+             class POINT(ctypes.Structure):
+                _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+                
+             def get_mouse_pos():
+                pt = POINT()
+                ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+                return pt.x, pt.y
+
+             # Adım 1: Sol Üst
+             msg = "Adım 1/2:\n\nMouse'u Minigame penceresinin (Balıkçılık)\nSOL ÜST KÖŞESİNE (İç kısmına) kutu başlangıcına getirin.\n\nHazır olunca Tamam'a basın ve 3 saniye bekleyin."
+             messagebox.showinfo("Minigame Tanıt", msg)
+             
+             # Kullanıcı pencereyi kapattıktan sonra 3 saniye süre ver (mouse'u yerleştirmesi için)
+             time.sleep(3)
+             x1, y1 = get_mouse_pos()
+             print(f"Sol üst alındı: {x1}, {y1}")
+             
+             self.sound_alert.play_alert()
+
+             # Adım 2: Sağ Alt
+             msg = f"Sol Üst: {x1}, {y1}\n\nAdım 2/2:\n\nŞimdi mouse'u SAĞ ALT KÖŞEYE getirin.\n\nHazır olunca Tamam'a basın ve 3 saniye bekleyin."
+             messagebox.showinfo("Minigame Tanıt", msg)
+             
+             time.sleep(3)
+             x2, y2 = get_mouse_pos()
+             print(f"Sağ alt alındı: {x2}, {y2}")
+             
+             self.sound_alert.play_alert()
+
+             # Hesapla
+             top = min(y1, y2)
+             left = min(x1, x2)
+             width = abs(x2 - x1)
+             height = abs(y2 - y1)
+             
+             area = {"top": top, "left": left, "width": width, "height": height}
+             
+             self.bot.set_minigame_area(area)
+             
+             # Onay
+             messagebox.showinfo("Başarılı", f"Minigame alanı kilitlendi!\n\nBot şimdi sadece bu kutunun içine bakacak.\n\n{area}")
+             self.update_log(f"Minigame Alanı: {area}")
+             
+        else:
+            from tkinter import messagebox
+            messagebox.showwarning("Hata", "Lütfen önce botu durdurun.")
 
 if __name__ == "__main__":
     app = App()

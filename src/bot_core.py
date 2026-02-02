@@ -71,6 +71,7 @@ class BotCore:
         
         # Tarama Alanı
         self.monitor = BotSettings.DEFAULT_MONITOR.copy()
+        self.minigame_area = None # Kullanıcı tarafından seçilen özel alan (Sol Üst / Sağ Alt)
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
         # Balık Rengi (HSV) - SİMSİYAH MODU
@@ -427,6 +428,16 @@ class BotCore:
         """InventoryManager'dan gelen bildirimleri işler"""
         if getattr(self, "tg_notify_catch", False):
             self.telegram_msg(message)
+    def set_minigame_area(self, rect):
+        """Kullanıcının seçtiği minigame alanını kaydeder (Dict: top, left, width, height)"""
+        self.minigame_area = rect
+        self.log(f"✅ Minigame alanı kilitlendi: {rect}")
+
+    def reset_minigame_area(self):
+        """Minigame alanını sıfırlar (Tüm ekran)"""
+        self.minigame_area = None
+        self.log("⚠️ Minigame alanı sıfırlandı. Sol üst tarama modu aktif.")
+
     def update_window_position(self):
         """Oyun penceresini bulur ve tarama alanını günceller"""
         if not IS_WINDOWS:
@@ -671,36 +682,38 @@ class BotCore:
                           self.anti_afk_routine()
                           continue
                     
-                    # 2. Görüntü Al (Sadece Sol Üst Köşe - Minigame Alanı)
-                    # Minigame genelde sol üstte çıkar dedin.
-                    # Tarama alanını yarıya kadar daraltıyoruz.
-                    scan_area = {
+                    
+                    # 2. Görüntü Al
+                    # Eğer kullanıcı özel bir alan seçtiyse SADECE ORADAN al.
+                    # Seçmediyse varsayılan (Sol Üst %60) devam.
+                    scan_area = self.minigame_area if self.minigame_area else {
                         "left": self.monitor["left"],
                         "top": self.monitor["top"],
-                        "width": int(self.monitor["width"] * 0.6), # %60 Genişlik
-                        "height": int(self.monitor["height"] * 0.6) # %60 Yükseklik
+                        "width": int(self.monitor["width"] * 0.6),
+                        "height": int(self.monitor["height"] * 0.6) 
                     }
-                    img = sct.grab(scan_area)
                     
-                    # 3. Kırmızı Daire Kontrolü (Tetikleyici)
-                    # Dikkat: red_center bu 'scan_area'ya göre yerel koordinat verecek.
-                    # Global koordinata çevirirken scan_area["left"] eklemeliyiz.
+                    try:
+                        img = sct.grab(scan_area)
+                    except Exception as e:
+                        self.log(f"Ekran alma hatası: {e}")
+                        continue
+                    
+                    # 3. Kırmızı Daire Kontrolü
                     red_center_local = self.detect_red_trigger(img)
                     
                     if red_center_local:
                          rx, ry = red_center_local
                          
-                         # Balığı ara (ROI ile) - Dairenin kenarlarını da kapsasın diye 100px
                          fish_pos_local = self.find_fish(img, roi_center=(rx, ry), roi_radius=100) 
                          
                          if fish_pos_local:
                              fx, fy = fish_pos_local
-                             # Global koordinat hesapla
-                             # scan_area'nın başlangıcı self.monitor["left"] ile aynı zaten
+                             # Global koordinat hesapla (scan_area'ya göre)
                              abs_x = int(scan_area["left"] + fx)
                              abs_y = int(scan_area["top"] + fy)
                              
-                             self.log(f"� KIRMIZI ! -> 🐟 Hedef (Global): {abs_x}, {abs_y}")
+                             self.log(f"🔴 KIRMIZI ! -> 🐟 Hedef (Global): {abs_x}, {abs_y}")
                              
                              if IS_WINDOWS:
                                  import direct_input
