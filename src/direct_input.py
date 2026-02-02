@@ -79,9 +79,28 @@ MOUSEEVENTF_LEFTUP = 0x0004
 MOUSEEVENTF_ABSOLUTE = 0x8000
 
 def move_mouse(x, y):
-    """Mouse'u belirtilen X, Y koordinatlarına taşır (Absolute)"""
-    # Windows ekran koordinatlarını (0-65535) aralığına çevirmek gerekir
-    ctypes.windll.user32.SetCursorPos(int(x), int(y))
+    """Mouse'u belirtilen X, Y koordinatlarına taşır (Absolute, SendInput ile)"""
+    # Windows SendInput absolute koordinatları 0-65535 arasına normalize eder.
+    # Ekran çözünürlüğünü almamız lazım.
+    user32 = ctypes.windll.user32
+    screen_width = user32.GetSystemMetrics(0)
+    screen_height = user32.GetSystemMetrics(1)
+    
+    # Normalize Et (65535 üzerinden)
+    norm_x = int(x * 65535 / screen_width)
+    norm_y = int(y * 65535 / screen_height)
+    
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, 0, ctypes.pointer(extra))
+    
+    # MouseInput struct'ında dx ve dy alanları long tipindedir.
+    # Ancak MOUSEEVENTF_ABSOLUTE kullanırken bu alanlara normalize edilmiş koordinatlar verilir.
+    ii_.mi.dx = norm_x
+    ii_.mi.dy = norm_y
+    
+    x_input = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x_input), ctypes.sizeof(x_input))
 
 def click_mouse():
     """Sol Tık Yapar"""

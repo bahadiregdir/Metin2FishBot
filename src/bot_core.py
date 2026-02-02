@@ -679,7 +679,7 @@ class BotCore:
                          fish_pos = self.find_fish(img) # Koyu modda ayarlı zaten
                          
                          if fish_pos:
-                             self.log("🔴 KIRMIZI ! -> 🐟 BALIK HEDEFLENİYOR!")
+                             self.log(f"🔴 KIRMIZI ! -> 🐟 Hedef: {fish_pos}")
                              
                              if IS_WINDOWS:
                                  import direct_input
@@ -688,6 +688,8 @@ class BotCore:
                                  tx, ty = fish_pos # Balığın merkezi
                                  abs_x = int(self.monitor["left"] + tx)
                                  abs_y = int(self.monitor["top"] + ty)
+                                 
+                                 self.log(f"📍 Mouse taşınıyor: {abs_x}, {abs_y}")
                                  
                                  # 1. Fareyi oraya götür (Donanım Seviyesi)
                                  direct_input.move_mouse(abs_x, abs_y)
@@ -706,11 +708,7 @@ class BotCore:
                                  time.sleep(1.5)
                                  self.state = "IDLE"
                          else:
-                             # Kırmızı yandı ama balığı bulamadık (Nadir durum)
-                             # Belki balık tam kırmızı dairenin üstündedir ve renk karışmıştır?
-                             # Bu durumda 'red_center'a (dairenin merkezine) vurmak mantıklı bir fallback olabilir.
-                             # Şimdilik sadece log basalım.
-                             pass # self.log("Kırmızı var ama balık yok?")
+                             self.log("⚠️ Kırmızı var, Balık YOK! (Siyah nesne bulunamadı)")
 
                     time.sleep(0.01) # Çok hızlı tarama (Refleks için)
 
