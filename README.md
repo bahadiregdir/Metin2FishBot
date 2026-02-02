@@ -75,6 +75,16 @@ Botun **Otomatik Canlanma** ve **Crash Algılama** özelliklerini kullanabilmek 
 - Örn: Sudak -> `2.5` (2.5m)
 Bot, tutulan balıkları bu fiyatlarla çarpıp ana ekranda ve Telegram raporunda size **"Toplam Kazanç: 3.5 Won"** gibi net bir sonuç gösterecektir.
 
+#### 🪱 Akıllı Yem Sistemi (Smart Refill)
+Bot artık yemleri körü körüne taramak yerine **akıllı sayaç** kullanır.
+- Her **180** olta atışında (yem paketi 200'lüktür) otomatik olarak envanteri açar.
+- Envanterinizdeki yedek solucanları bulup **otomatik olarak** kısayol tuşuna atar.
+- Bu sayede sabaha kadar **kesintisiz** balık tutabilirsiniz. (Envanterinize bolca solucan almayı unutmayın!)
+
+#### 🕒 Saatlik Verimlilik (Heatmap)
+İstatistikler sekmesinde artık **"Hangi saatte ne kadar balık tutuldu?"** analizi görebilirsiniz.
+- Bu verileri kullanarak botu hangi saatlerde çalıştırmanızın daha karlı olduğunu keşfedebilirsiniz.
+
 ## 📁 Proje Yapısı
 
 ```
