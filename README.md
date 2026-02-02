@@ -69,6 +69,12 @@ Botun **Otomatik Canlanma** ve **Crash Algılama** özelliklerini kullanabilmek 
 
 > **Not:** Windows'ta ekran görüntüsü alıp (Windows+Shift+S) sadece ilgili butonu/yazıyı kırparak ekleyin. Bot otomatik tanıyacaktır.
 
+#### 💰 Won Hesaplayıcı (Yeni)
+"Balık Listesi" sekmesinde her balığın yanındaki kutucuğa piyasa fiyatını (milyon yang cinsinden) girin.
+- Örn: İstiridye -> `5` (5m)
+- Örn: Sudak -> `2.5` (2.5m)
+Bot, tutulan balıkları bu fiyatlarla çarpıp ana ekranda ve Telegram raporunda size **"Toplam Kazanç: 3.5 Won"** gibi net bir sonuç gösterecektir.
+
 ## 📁 Proje Yapısı
 
 ```
