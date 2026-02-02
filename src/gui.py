@@ -19,6 +19,7 @@ from multi_account import MultiAccountManager
 from profiles import ProfileManager
 from hotkeys import HotkeyManager
 from reports import ReportManager
+import updater
 
 ctk.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
@@ -40,8 +41,8 @@ class App(ctk.CTk):
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(7, weight=1)
 
-        self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="🎣 FishBot v2.0", font=ctk.CTkFont(size=20, weight="bold"))
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
+        self.title_label = ctk.CTkLabel(self.sidebar_frame, text="🎣 FishBot v2.0", font=ctk.CTkFont(size=20, weight="bold"))
+        self.title_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
         # Başlat / Durdur
         self.start_button = ctk.CTkButton(self.sidebar_frame, text="BAŞLAT", fg_color="green", hover_color="darkgreen", command=self.toggle_bot)
@@ -336,6 +337,25 @@ class App(ctk.CTk):
             self.update_log("⚠️ Hotkey başlatılamadı (pynput gerekli)")
         
         self.update_stats()
+        
+        # Güncelleme Kontrolü
+        updater.check_for_updates(self.on_update_check)
+
+    def on_update_check(self, has_update, version):
+        """Güncelleme kontrolü sonucu"""
+        if has_update:
+            msg = f"🚀 YENİ GÜNCELLEME MEVCUT! (v{version})"
+            self.update_log(msg)
+            
+            # Güncelle butonunu görünür yap veya renkli uyar
+            if hasattr(self, 'title_label'):
+                self.title_label.configure(text=f"Metin2 FishBot v2.1 (Update: v{version})", text_color="#FF5722")
+            
+            # Telegram'a da bildir
+            if hasattr(self.bot, 'telegram') and self.bot.telegram and self.bot.telegram.enabled:
+                self.bot.telegram.send_message(f"📢 Yeni güncelleme (v{version}) mevcut! Lütfen botu güncelleyin.")
+        else:
+            self.update_log(f"✅ Bot Güncel (v{version})")
 
     def create_stats_tab(self):
         """İstatistik sekmesini oluştur"""
