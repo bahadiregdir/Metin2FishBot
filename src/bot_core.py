@@ -671,44 +671,46 @@ class BotCore:
                           self.anti_afk_routine()
                           continue
                     
-                    # 2. Görüntü Al
-                    img = sct.grab(self.monitor)
+                    # 2. Görüntü Al (Sadece Sol Üst Köşe - Minigame Alanı)
+                    # Minigame genelde sol üstte çıkar dedin.
+                    # Tarama alanını yarıya kadar daraltıyoruz.
+                    scan_area = {
+                        "left": self.monitor["left"],
+                        "top": self.monitor["top"],
+                        "width": int(self.monitor["width"] * 0.6), # %60 Genişlik
+                        "height": int(self.monitor["height"] * 0.6) # %60 Yükseklik
+                    }
+                    img = sct.grab(scan_area)
                     
                     # 3. Kırmızı Daire Kontrolü (Tetikleyici)
-                    red_center = self.detect_red_trigger(img)
+                    # Dikkat: red_center bu 'scan_area'ya göre yerel koordinat verecek.
+                    # Global koordinata çevirirken scan_area["left"] eklemeliyiz.
+                    red_center_local = self.detect_red_trigger(img)
                     
-                    if red_center:
-                         # Kırmızıyı gördük! Sadece bu dairenin içinde balık ara.
-                         # red_center -> (x, y)
-                         fish_pos = self.find_fish(img, roi_center=red_center, roi_radius=70) 
+                    if red_center_local:
+                         rx, ry = red_center_local
                          
-                         if fish_pos:
-                             self.log(f"🔴 KIRMIZI ! -> 🐟 Hedef: {fish_pos}")
+                         # Balığı ara (ROI ile)
+                         fish_pos_local = self.find_fish(img, roi_center=(rx, ry), roi_radius=80) 
+                         
+                         if fish_pos_local:
+                             fx, fy = fish_pos_local
+                             # Global koordinat hesapla
+                             # scan_area'nın başlangıcı self.monitor["left"] ile aynı zaten
+                             abs_x = int(scan_area["left"] + fx)
+                             abs_y = int(scan_area["top"] + fy)
+                             
+                             self.log(f"� KIRMIZI ! -> 🐟 Hedef (Global): {abs_x}, {abs_y}")
                              
                              if IS_WINDOWS:
                                  import direct_input
-                                 
-                                 # Balığın konumuna git
-                                 tx, ty = fish_pos # Balığın merkezi
-                                 abs_x = int(self.monitor["left"] + tx)
-                                 abs_y = int(self.monitor["top"] + ty)
-                                 
-                                 self.log(f"📍 Mouse taşınıyor: {abs_x}, {abs_y}")
-                                 
-                                 # 1. Fareyi oraya götür (Donanım Seviyesi)
+                                 self.log(f"📍 Mouse taşınıyor...")
                                  direct_input.move_mouse(abs_x, abs_y)
-                                 
-                                 # Kısa bir bekleme (Oyunun mouse'un geldiğini anlaması için)
                                  time.sleep(0.05)
-                                 
-                                 # 2. VUR! (Sadece Mouse Click - Kullanıcı isteği)
-                                 # direct_input.send_key("space") # Space'i şimdilik kapattık
                                  direct_input.click_mouse()
                                  
                                  self.stats["caught"] += 1
                                  self.log("✅ Tıklandı!")
-                                 
-                                 # Minigame bitişini bekle ve başa dön
                                  time.sleep(1.5)
                                  self.state = "IDLE"
                          else:
