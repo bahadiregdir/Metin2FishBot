@@ -64,7 +64,7 @@ class BotSettings:
     DEFAULT_WINDOW_TITLE = "Metin2"
 
 class BotCore:
-    def __init__(self, update_log_callback=None, api_key=None, inventory_manager=None):
+    def __init__(self, update_log_callback=None, api_key=None):
         self.is_running = False
         self.log_callback = update_log_callback
         self.state = "IDLE" 
@@ -432,9 +432,42 @@ class BotCore:
             return True
 
         try:
+            # Tüm eşleşenleri al
             windows = gw.getWindowsWithTitle(self.window_title)
+            
+            target_win = None
+            # Botun kendi başlığı (tahmini) - GUI'den set edilmediyse varsayılan
+            # Not: BotCore GUI'ye erişemez ama kendi başlığının ne olabileceğini bilir
+            possible_bot_titles = ["Metin2 Smart FishBot", "FishBot", "Bot"]
+
             if windows:
-                win = windows[0]
+                # Filtreleme Mantığı
+                for w in windows:
+                    # Pencere başlığında bot kelimeleri geçiyorsa ve tam eşleşme değilse şüphelen
+                    title = w.title
+                    is_bot = False
+                    for bt in possible_bot_titles:
+                        if bt in title:
+                            is_bot = True
+                            break
+                    
+                    # Eğer aradığımız şey tam olarak "Metin2" ise ve bulduğumuz şey "Metin2 Smart FishBot" ise, bu bizizdir.
+                    # Ama aradığımız şey "Metin2 Smart FishBot" ise, o zaman bizizdir (kullanıcı botu seçmişse hata ondadır ama handle edelim)
+                    
+                    if self.window_title == title:
+                        # Tam eşleşme her zaman önceliklidir
+                        target_win = w
+                        break
+                    
+                    if not is_bot:
+                        target_win = w
+                        break
+                
+                # Hala bulamadıysak ilkini al (Fallback)
+                if not target_win:
+                    target_win = windows[0]
+
+                win = target_win
                 # Pencere varsa, oyun alanı olarak ayarla
                 # Not: Tam ekran değilse başlık çubuğunu hesaba katmak gerekebilir.
                 self.monitor = {
@@ -443,7 +476,7 @@ class BotCore:
                     "width": win.width - 16, 
                     "height": win.height - 38
                 }
-                self.log(f"Oyun penceresi bulundu: {win.title} ({win.left}, {win.top})")
+                # self.log(f"Oyun penceresi güncellendi: {win.title}")
                 
                 # Pencereyi aktif yap (Öne getir)
                 try:
