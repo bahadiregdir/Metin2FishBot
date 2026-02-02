@@ -1,0 +1,9 @@
+customtkinter
+mss
+numpy
+opencv-python
+pydirectinput-rgx
+Pillow
+pygetwindow
+requests
+pynput
