@@ -73,9 +73,10 @@ class BotCore:
         self.monitor = BotSettings.DEFAULT_MONITOR.copy()
         self.window_title = BotSettings.DEFAULT_WINDOW_TITLE
         
-        # Balık Rengi (HSV)
-        self.fish_lower = np.array([0, 0, 200])   
-        self.fish_upper = np.array([180, 50, 255])
+        # Balık Rengi (HSV) - KOYU RENK MODU (Görsele göre)
+        # Siyah/Koyu Gri balığı tespit etmek için Value (Parlaklık) üst limitini düşük tutuyoruz.
+        self.fish_lower = np.array([0, 0, 0])      # En koyu (Siyah)
+        self.fish_upper = np.array([180, 255, 90]) # En açık (Koyu Gri) - Value 90'ı geçmesin
         
         self.stats = {"caught": 0, "missed": 0, "casts": 0}
         self.start_timestamp = 0
@@ -624,34 +625,35 @@ class BotCore:
                     # Olta atma öncesi rastgele bekleme
                     self.sleep_random(self.cast_min, self.cast_max)
                     
-                    # --- YEM YENİLEME (GELİŞMİŞ) ---
-                    # Yem takma önceliği olta atmadan önce olmalı!
-                    self.worm_counter += 1
-                    
-                    # İlk açılışta veya eşik değeri aşılınca yem tak
-                    if self.worm_counter >= BotSettings.WORM_REFILL_THRESHOLD:
-                         self.log("🪱 Yem tazeleniyor...")
-                         if IS_WINDOWS:
-                             import direct_input
-                             # Yem tuşuna bas (Örn: F1)
-                             direct_input.send_key(self.bait_key)
-                             time.sleep(1.5) # Yem takma animasyonu bekle
-                             self.worm_counter = 0
+                    # --- YEM YENİLEME (HER ATIŞTA) ---
+                    if IS_WINDOWS:
+                        import direct_input
+                        self.log("🪱 Yem takılıyor...")
+                        direct_input.send_key(self.bait_key)
+                        time.sleep(1.0) # Yem takma animasyon payı
                     
                     # ------------------------------------
 
                     self.log("Olta atılıyor...")
                     if IS_WINDOWS:
-                        import direct_input
+                        # Olta At (Space)
+                        # Space tuşuna basılı tutma süresi eklenebilir (dolum için) ama genelde tek tık yeter.
+                        # Minigame açılması için "Space"e basıp beklemek gerekebilir, versiyona göre değişir.
+                        # Şimdilik normal bas-çek yapıyoruz.
                         direct_input.send_key("space")
                     
                     self.stats["casts"] += 1
                     
-                    # Balık bekleme moduna geç
+                    # Balık bekleme moduna geç (Minigame penceresini bekle)
                     self.state = "WAITING_FISH"
-                    self.log("Balık bekleniyor...")
-                    
                     self.wait_start_time = time.time()
+                    self.log("Balık/Minigame bekleniyor...")
+                    
+                    # Eski Yem Mantığı (Paket Sayacı - Opsiyonel Log için)
+                    self.worm_counter += 1
+                    if self.inventory_manager and self.worm_counter >= 200:
+                        self.log("ℹ️ Bir kutu yem bitmiş olabilir.")
+                        self.worm_counter = 0
 
                     # Olta atma animasyonu bekleme
                     base = BotSettings.ANIMATION_WAIT_BASE
