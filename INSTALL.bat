@@ -1,49 +1,48 @@
 @echo off
-title FishBot Installer
+title Metin2 FishBot Kurulumu
 color 0A
-
-echo ========================================
-echo    Metin2 FishBot - Kurulum
-echo ========================================
+echo ===================================================
+echo Metin2 FishBot - Otomatik Kurulum Sihirbazi
+echo ===================================================
 echo.
 
-:: Python kontrolu
+echo [1/4] Python kontrol ediliyor...
 python --version >nul 2>&1
-if errorlevel 1 (
+if %errorlevel% neq 0 (
+    color 0C
     echo [HATA] Python bulunamadi!
-    echo.
-    echo Python 3.10+ indirin: https://www.python.org/downloads/
-    echo Kurulum sirasinda "Add Python to PATH" secenegini isaretleyin!
-    echo.
+    echo Lutfen https://www.python.org/downloads/ adresinden Python 3.10+ indirin.
+    echo Kurulum sirasinda "Add Python to PATH" secenegini isaretlemeyi UNUTMAYIN.
     pause
-    exit /b 1
+    exit
 )
-
-echo [OK] Python bulundu
+echo Python bulundu.
 echo.
 
-:: Virtual environment olustur
-echo [1/4] Sanal ortam olusturuluyor...
+echo [2/4] Sanal ortam (venv) olusturuluyor...
 if not exist "venv" (
     python -m venv venv
+    echo Venv olusturuldu.
+) else (
+    echo Venv zaten mevcut.
 )
-echo [OK] Sanal ortam hazir
 echo.
 
-:: Aktive et
-echo [2/4] Sanal ortam aktive ediliyor...
-call venv\Scripts\activate.bat
+echo [3/4] Gerekli kutuphaneler yukleniyor (Biraz sürebilir)...
+call venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    color 0C
+    echo [HATA] Kutuphaneler yuklenirken sorun olustu.
+    pause
+    exit
+)
+echo.
 
-:: Paketleri yukle
-echo [3/4] Gerekli paketler yukleniyor...
-pip install -r requirements.txt -q
-
+echo [4/4] Kurulum basariyla tamamlandi!
 echo.
-echo [4/4] Kurulum tamamlandi!
-echo.
-echo ========================================
-echo    Calistirmak icin: run.bat
-echo    EXE olusturmak icin: build_exe.bat
-echo ========================================
-echo.
+echo ===================================================
+echo Artik 'RUN.bat' dosyasina cift tiklayarak botu acabilirsiniz.
+echo ===================================================
 pause
