@@ -28,6 +28,48 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+
+        # --- MODÜL BAŞLATMA (ÖNCELİKLİ) ---
+        self.inventory_manager = InventoryManager() 
+        self.bot = BotCore(update_log_callback=self.update_log)
+        self.fish_stats = FishStats()
+        self.sound_alert = SoundAlert()
+        self.profile_manager = ProfileManager()
+        self.hotkey_manager = HotkeyManager()
+        
+        self.scheduler = BotScheduler()
+        self.scheduler.set_callbacks(
+            on_start=self.start_bot_scheduled,
+            on_stop=self.stop_bot_scheduled,
+            on_log=self.update_log
+        )
+        
+        self.account_manager = MultiAccountManager()
+        self.current_account_id = self.account_manager.create_session(
+            name="Varsayılan",
+            bot_instance=self.bot,
+            monitor=self.bot.monitor
+        )
+        
+        self.report_manager = ReportManager()
+        self.report_manager.set_stats(self.fish_stats)
+        self.report_manager.set_inventory(self.inventory_manager)
+        
+        self.hotkey_manager.set_callbacks(
+            toggle=self.toggle_bot,
+            stop=self.emergency_stop,
+            screenshot=self.take_screenshot,
+            pause=self.pause_5min,
+            log=self.update_log
+        )
+        
+        # Bot Entegrasyon
+        self.bot.fish_stats = self.fish_stats
+        self.bot.sound_alert = self.sound_alert
+        self.bot.inventory_manager = self.inventory_manager
+        self.bot.gui_start_callback = self.toggle_bot
+        # ---------------------------------
+
         # Pencere Ayarları
         self.title("Metin2 Smart FishBot - Pro Version")
         self.geometry("900x650")
@@ -169,7 +211,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(self.adv_scroll, text="⏱ Zamanlama ve Gecikmeler", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
         
-        self.inventory_manager = InventoryManager()
+
 
         # Ayarları Yükle
         defaults = self.inventory_manager.config.DEFAULT_CONFIG["bot_settings"]
@@ -279,50 +321,6 @@ class App(ctk.CTk):
         self.save_settings_btn = ctk.CTkButton(self.adv_scroll, text="💾 TÜM AYARLARI KAYDET", height=40, font=ctk.CTkFont(size=14, weight="bold"), command=self.save_advanced_settings)
         self.save_settings_btn.pack(pady=30)
 
-        # Bot Motorunu Başlat
-        self.bot = BotCore(update_log_callback=self.update_log)
-        
-        # Multi-Account Manager
-        self.account_manager = MultiAccountManager()
-        self.current_account_id = self.account_manager.create_session(
-            name="Varsayılan",
-            bot_instance=self.bot,
-            monitor=self.bot.monitor
-        )
-        
-        # Yeni Modüller (load_fish_list'ten önce olmalı!)
-        self.fish_stats = FishStats()
-        self.scheduler = BotScheduler()
-        self.scheduler.set_callbacks(
-            on_start=self.start_bot_scheduled,
-            on_stop=self.stop_bot_scheduled,
-            on_log=self.update_log
-        )
-        self.sound_alert = SoundAlert()
-        
-        # Profil Yöneticisi
-        self.profile_manager = ProfileManager()
-        
-        # Hotkey Yöneticisi
-        self.hotkey_manager = HotkeyManager()
-        self.hotkey_manager.set_callbacks(
-            toggle=self.toggle_bot,
-            stop=self.emergency_stop,
-            screenshot=self.take_screenshot,
-            pause=self.pause_5min,
-            log=self.update_log
-        )
-        
-        # Rapor Yöneticisi
-        self.report_manager = ReportManager()
-        self.report_manager.set_stats(self.fish_stats)
-        self.report_manager.set_inventory(self.inventory_manager)
-        
-        # Bot'a modülleri bağla (Entegrasyon)
-        self.bot.fish_stats = self.fish_stats
-        self.bot.sound_alert = self.sound_alert
-        self.bot.inventory_manager = self.inventory_manager
-        self.bot.gui_start_callback = self.toggle_bot  # Telegram /start için
 
         # Balık Listesini Yükle (sound_alert tanımlı olmalı)
         self.load_fish_list()
