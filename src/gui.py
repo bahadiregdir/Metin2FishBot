@@ -12,6 +12,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from bot_core import BotCore
 from inventory import InventoryManager
+from config_manager import ConfigManager
 from stats import FishStats
 from scheduler import BotScheduler
 from sound_alert import SoundAlert
@@ -223,6 +224,15 @@ class App(ctk.CTk):
 
         # Ayarları Yükle
         try:
+            # GÜVENLİK KONTROLÜ
+            if not hasattr(self, 'inventory_manager') or self.inventory_manager is None:
+                print("⚠️ KRİTİK: InventoryManager bulunamadı, yeniden oluşturuluyor...")
+                self.inventory_manager = InventoryManager()
+
+            if not hasattr(self.inventory_manager, 'config') or self.inventory_manager.config is None:
+                print("⚠️ KRİTİK: ConfigManager bulunamadı, oluşturuluyor...")
+                self.inventory_manager.config = ConfigManager()
+
             defaults = self.inventory_manager.config.DEFAULT_CONFIG["bot_settings"]
             current_config = getattr(self.inventory_manager.config, 'config', {})
             if current_config is None: current_config = {}
