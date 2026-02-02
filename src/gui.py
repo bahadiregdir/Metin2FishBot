@@ -649,11 +649,33 @@ class App(ctk.CTk):
             def on_select(selected_title):
                 try:
                     self.bot.window_title = selected_title
+                    # Tüm eşleşenleri getir
                     wins = gw.getWindowsWithTitle(selected_title)
-                    if wins:
-                        win = wins[0]
-                        # Title bar'ı hesaba kat (Genelde üstten 30px, eğer pencere moduysa)
-                        # Tam ekransa 0 olabilir ama güvenli alan için 30px düşelim.
+                    
+                    target_win = None
+                    my_title = self.title()
+                    
+                    # Filtreleme: Botun kendisi olmayan doğru pencereyi bul
+                    for w in wins:
+                        # Eğer pencere başlığı botun başlığıyla aynıysa atla
+                        if w.title == my_title:
+                            continue
+                        
+                        # Tam eşleşme varsa onu al (En garantisi)
+                        if w.title == selected_title:
+                            target_win = w
+                            break
+                            
+                    # Tam eşleşme bulamazsan, bot olmayan ilk pencereyi al
+                    if target_win is None:
+                        for w in wins:
+                            if w.title != my_title:
+                                target_win = w
+                                break
+
+                    if target_win:
+                        win = target_win
+                        # Title bar'ı hesaba kat
                         monitor = {
                             "top": win.top + 30 if win.top >= 0 else 30, 
                             "left": win.left if win.left >= 0 else 0,
@@ -663,19 +685,17 @@ class App(ctk.CTk):
                         
                         self.bot.monitor = monitor
                         
-                        # GUI'yi güncelle
                         if hasattr(self, 'monitor_info'):
-                             self.monitor_info.configure(text=f"Seçili: {selected_title[:20]}...\n{monitor['width']}x{monitor['height']}")
+                             self.monitor_info.configure(text=f"Seçili: {win.title[:15]}...\n{monitor['width']}x{monitor['height']}")
                         
-                        self.update_log(f"✅ Pencere seçildi: {selected_title}")
+                        self.update_log(f"✅ Pencere kilitlendi: {win.title}")
                         self.update_log(f"  > Konum: {monitor['left']}x{monitor['top']}")
                         
-                        # Config'e kaydet
                         if hasattr(self.inventory_manager, 'config'):
                             self.inventory_manager.config.config["bot_settings"]["scan_area"] = monitor
                             self.inventory_manager.config.save_config()
                     else:
-                        self.update_log("⚠️ Pencere bulundu ama erişilemedi.")
+                        self.update_log("⚠️ Pencere bulundu ama botun kendisiyle karıştı!")
                         
                     selector.destroy()
                 except Exception as e:
