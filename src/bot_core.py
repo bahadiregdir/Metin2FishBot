@@ -645,9 +645,8 @@ class BotCore:
                     self.stats["casts"] += 1
                     
                     # Balık bekleme moduna geç (Minigame penceresini bekle)
-                    self.state = "WAITING_FISH"
                     self.wait_start_time = time.time()
-                    self.log("Balık/Minigame bekleniyor...")
+                    # self.log("Balık/Minigame bekleniyor...")
                     
                     # Eski Yem Mantığı (Paket Sayacı - Opsiyonel Log için)
                     self.worm_counter += 1
@@ -657,90 +656,100 @@ class BotCore:
 
                     # Olta atma animasyonu bekleme
                     base = BotSettings.ANIMATION_WAIT_BASE
-                    self.sleep_random(base, base + 0.5)
+                    wait_time = random.uniform(base, base + 0.5)
+                    # self.sleep_random(...) yerine time.sleep kullanalim, bloklanmasin
+                    time.sleep(wait_time) 
 
-
+                elif self.state == "WAITING_FISH":
+                    # --- MİNİGAME (KIRMIZI DAİRE) MODU ---
                     
-                    self.state = "WAITING"
-                    self.wait_start_time = time.time() # Zaman ölçümü başla
-                
-                elif self.state == "WAITING":
                     # 1. Timeout Kontrolü
                     if (time.time() - self.wait_start_time) > self.wait_timeout:
-                         self.log("⚠️ Zaman aşımı! Balık gelmedi, tekrar deniyor...")
-                         self.state = "IDLE"
-                         continue
-
-                    # 2. Balık ikonu (Konuşma balonu) kontrolü
-                    if self.detect_fish_bubble(sct):
-                         self.log("🎣 Balık oltaya vurdu! (Balon Tespit Edildi)")
-                         self.sleep_random(BotSettings.REACTION_DELAY_MIN, BotSettings.REACTION_DELAY_MAX)
-                         self.state = "PLAYING"
+                          self.log("⚠️ Zaman aşımı! Minigame bitti veya balık gelmedi.")
+                          self.state = "IDLE"
+                          # Rutin kontroller
+                          self.anti_afk_routine()
+                          continue
                     
-                    time.sleep(0.1)
-
-                elif self.state == "PLAYING":
-                    hits = 0
-                    start_time = time.time()
+                    # 2. Görüntü Al
+                    img = sct.grab(self.monitor)
                     
-                    max_dur = BotSettings.FISHING_ROUND_DURATION
-                    max_hits = BotSettings.FISHING_HIT_LIMIT
+                    # 3. Kırmızı Daire Ara (Tetikleyici)
+                    red_center = self.find_red_circle(img)
                     
-                    # Vuruş limiti ve zaman aşımı
-                    while hits < max_hits and (time.time() - start_time) < max_dur:
-                        if not self.is_running: break
-                        
-                        img = sct.grab(self.monitor)
-                        fish_pos = self.find_fish(img)
-                        
-                        if fish_pos:
-                            # Balığı bulunca oraya git
-                            self.human_move(fish_pos[0], fish_pos[1])
-                            
-                            # Tıkla
-                            pydirectinput.click()
-                            hits += 1
-                            self.log(f"⚡ Vuruş {hits}/{max_hits}")
-                            
-                            # Tıkladıktan sonra balığın yer değiştirmesini bekle
-                            self.sleep_random(BotSettings.REACTION_DELAY_MIN, BotSettings.REACTION_DELAY_MAX)
-                        
-                        # Tarama sıklığı (FPS)
-                        time.sleep(BotSettings.SCAN_DELAY) 
-                    
-                    if hits >= max_hits:
-                        self.log("✅ Balık Yakalandı!")
-                        self.stats["caught"] += 1
-                        
-                        # İstatistik Kaydet
-                        if hasattr(self, 'fish_stats') and self.fish_stats:
-                            self.fish_stats.record_fish("unknown")  # Tür belirlenmemişse
-                        
-                        # Ses Uyarısı (eğer bu balık için ses açıksa)
-                        if hasattr(self, 'sound_alert') and self.sound_alert:
-                            self.sound_alert.play_alert("unknown")
-                        
-                        # Balığı tuttuktan sonra envanter/yem kontrolü yap
-                        self.post_catch_routine()
-                        
-                        # Envanter Yönetimi (Oto Temizlik - Randomize)
-                        if self.stats["caught"] % self.next_inv_check == 0:
-                             self.process_inventory(sct)
-                             # Yeni bir rastgele hedef belirle
-                             self.next_inv_check = random.randint(4, 8)
+                    if red_center:
+                         self.log("🔴 KIRMIZI DAİRE TESPİT EDİLDİ! VURULUYOR!")
+                         
+                         if IS_WINDOWS:
+                             import direct_input
+                             # Fareyi hedefe götür
+                             tx, ty = red_center
+                             abs_x = int(self.monitor["left"] + tx)
+                             abs_y = int(self.monitor["top"] + ty)
                              
-                    else:
-                        self.log("❌ Balık Kaçtı.")
-                        self.stats["missed"] += 1
-                    
-                    time.sleep(1)
-                    self.state = "IDLE"
+                             # Hareket
+                             pydirectinput.moveTo(abs_x, abs_y)
+                             
+                             # Vuruş (Hem Tık Hem Space)
+                             pydirectinput.click() 
+                             direct_input.send_key("space") 
+                             
+                             self.stats["caught"] += 1
+                             self.log("✅ Vuruş Yapıldı!")
+                             
+                             # Minigame bitişini bekle
+                             time.sleep(2.0)
+                             self.state = "IDLE"
 
-                    self.anti_afk_routine()
-                    
-                    self.state = "IDLE"
+                    time.sleep(0.05) # CPU Koruma
+
+    def find_red_circle(self, img):
+        """Görüntüde Kırmızı Daire/Halka arar"""
+        try:
+            # Görüntü dönüşümü
+            frame = np.array(img)
+            # MSS BGRA döndürür, OpenCV BGR bekler
+            if frame.shape[2] == 4:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+            # Kırmızı Renk Maskeleme (İki aralık)
+            # Alt Kırmızı (0-10)
+            lower1 = np.array([0, 120, 70])
+            upper1 = np.array([10, 255, 255])
+            # Üst Kırmızı (170-180)
+            lower2 = np.array([170, 120, 70])
+            upper2 = np.array([180, 255, 255])
+            
+            mask1 = cv2.inRange(hsv, lower1, upper1)
+            mask2 = cv2.inRange(hsv, lower2, upper2)
+            mask = cv2.addWeighted(mask1, 1.0, mask2, 1.0, 0.0)
+            
+            # Gürültü temizleme
+            kernel = np.ones((5,5), np.uint8) # Biraz büyük kernel halkayı birleştirmek için
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+            
+            # Kontur bul
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            if contours:
+                # En büyük kırmızı alan (Daire/Halka)
+                largest = max(contours, key=cv2.contourArea)
+                area = cv2.contourArea(largest)
                 
-                time.sleep(0.1)
+                # Yeterince büyük mü? (Minigame dairesi büyüktür)
+                if area > 100: 
+                    # Ağırlık merkezi
+                    M = cv2.moments(largest)
+                    if M["m00"] != 0:
+                        cX = int(M["m10"] / M["m00"])
+                        cY = int(M["m01"] / M["m00"])
+                        return (cX, cY)
+            return None
+        except Exception as e:
+            # self.log(f"Red circle error: {e}")
+            return None
 
     def process_inventory(self, sct):
         """Envanteri tarar ve işlemleri yapar (Çok sayfalı destek)"""
