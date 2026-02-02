@@ -690,8 +690,8 @@ class BotCore:
                     if red_center_local:
                          rx, ry = red_center_local
                          
-                         # Balığı ara (ROI ile)
-                         fish_pos_local = self.find_fish(img, roi_center=(rx, ry), roi_radius=80) 
+                         # Balığı ara (ROI ile) - Dairenin kenarlarını da kapsasın diye 100px
+                         fish_pos_local = self.find_fish(img, roi_center=(rx, ry), roi_radius=100) 
                          
                          if fish_pos_local:
                              fx, fy = fish_pos_local
@@ -740,13 +740,25 @@ class BotCore:
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             if contours:
+                # En büyük kırmızı alanı bul
                 largest = max(contours, key=cv2.contourArea)
+                
                 if cv2.contourArea(largest) > 200: # Yeterli büyüklükte kırmızı
-                    M = cv2.moments(largest)
-                    if M["m00"] != 0:
-                        cX = int(M["m10"] / M["m00"])
-                        cY = int(M["m01"] / M["m00"])
-                        return (cX, cY)
+                    # En-Boy Oranı Kontrolü (HP Barı vs. Minigame Dairesi Ayrımı)
+                    x, y, w, h = cv2.boundingRect(largest)
+                    aspect_ratio = float(w) / h
+                    
+                    # Daire veya Karemsi bir şey olmalı. 
+                    # Uzun çubuksa (AR > 2.0 veya AR < 0.5) bu bir UI parçasıdır (Can barı gibi).
+                    if 0.6 <= aspect_ratio <= 1.5:
+                        M = cv2.moments(largest)
+                        if M["m00"] != 0:
+                            cX = int(M["m10"] / M["m00"])
+                            cY = int(M["m01"] / M["m00"])
+                            return (cX, cY)
+                    # else:
+                        # self.log(f"Red ignored (AR: {aspect_ratio:.2f})")
+                        
             return None
         except:
             return None
