@@ -27,10 +27,17 @@ ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-
+        print("DEBUG: App.__init__ başladı.")
 
         # --- MODÜL BAŞLATMA (ÖNCELİKLİ) ---
-        self.inventory_manager = InventoryManager() 
+        try:
+            print("DEBUG: InventoryManager oluşturuluyor...")
+            self.inventory_manager = InventoryManager() 
+            print(f"DEBUG: InventoryManager oluşturuldu: {self.inventory_manager}")
+            print(f"DEBUG: ConfigManager: {getattr(self.inventory_manager, 'config', 'YOK')}")
+        except Exception as e:
+            print(f"DEBUG: InventoryManager oluşturma HATASI: {e}")
+
         self.bot = BotCore(update_log_callback=self.update_log)
         self.fish_stats = FishStats()
         self.sound_alert = SoundAlert()
@@ -62,6 +69,7 @@ class App(ctk.CTk):
             pause=self.pause_5min,
             log=self.update_log
         )
+
         
         # Bot Entegrasyon
         self.bot.fish_stats = self.fish_stats
