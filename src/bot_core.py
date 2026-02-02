@@ -689,17 +689,21 @@ class BotCore:
                                  abs_x = int(self.monitor["left"] + tx)
                                  abs_y = int(self.monitor["top"] + ty)
                                  
-                                 pydirectinput.moveTo(abs_x, abs_y)
+                                 # 1. Fareyi oraya götür (Donanım Seviyesi)
+                                 direct_input.move_mouse(abs_x, abs_y)
                                  
-                                 # VUR! (Click + Space)
-                                 pydirectinput.click() 
-                                 direct_input.send_key("space") 
+                                 # Kısa bir bekleme (Oyunun mouse'un geldiğini anlaması için)
+                                 time.sleep(0.05)
+                                 
+                                 # 2. VUR! (Sadece Mouse Click - Kullanıcı isteği)
+                                 # direct_input.send_key("space") # Space'i şimdilik kapattık
+                                 direct_input.click_mouse()
                                  
                                  self.stats["caught"] += 1
-                                 self.log("✅ Yakalandı!")
+                                 self.log("✅ Tıklandı!")
                                  
                                  # Minigame bitişini bekle ve başa dön
-                                 time.sleep(2.0)
+                                 time.sleep(1.5)
                                  self.state = "IDLE"
                          else:
                              # Kırmızı yandı ama balığı bulamadık (Nadir durum)

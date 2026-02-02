@@ -70,3 +70,32 @@ def send_key(key_name, duration=0.1):
     else:
         print(f"Bilinmeyen tus kodu: {key}")
         return False
+
+# --- MOUSE FONKSİYONLARI ---
+
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+MOUSEEVENTF_ABSOLUTE = 0x8000
+
+def move_mouse(x, y):
+    """Mouse'u belirtilen X, Y koordinatlarına taşır (Absolute)"""
+    # Windows ekran koordinatlarını (0-65535) aralığına çevirmek gerekir
+    ctypes.windll.user32.SetCursorPos(int(x), int(y))
+
+def click_mouse():
+    """Sol Tık Yapar"""
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    
+    # Bas
+    ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTDOWN, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+    
+    time.sleep(0.05) # Küçük bir basılı tutma süresi
+    
+    # Çek
+    ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
