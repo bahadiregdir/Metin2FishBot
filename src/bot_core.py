@@ -79,6 +79,9 @@ class BotCore:
         self.fish_lower = np.array([0, 0, 0])      
         self.fish_upper = np.array([180, 255, 150])
         
+        # --- DEBUG MODU ---
+        self.debug_vision = False # GUI'den açılabilir (Görsel pencereleri gösterir)
+        
         # Minigame Tetikleyicisi (Kırmızı Daire) için kullanılan değerler detect_red_trigger içinde tanımlı.
         
         self.stats = {"caught": 0, "missed": 0, "casts": 0}
@@ -675,6 +678,12 @@ class BotCore:
                 elif self.state == "WAITING_FISH":
                     # --- MİNİGAME MODU: KIRMIZI GÖR -> SİYAHA VUR ---
                     
+                    # 0. Minigame Area Kontrolü
+                    if not self.minigame_area:
+                        self.log("⚠️ DİKKAT: Minigame Alanı tanıtılmamış! Lütfen 'Minigame Tanıt' butonuna basın.")
+                        self.state = "IDLE"
+                        continue
+                    
                     # 1. Timeout Kontrolü
                     if (time.time() - self.wait_start_time) > self.wait_timeout:
                           self.log("⚠️ Zaman aşımı! Sıradaki...")
@@ -693,6 +702,11 @@ class BotCore:
                         "height": int(self.monitor["height"] * 0.6) 
                     }
                     
+                    # DEBUG: İlk iterasyonda scan alanını göster
+                    if not hasattr(self, '_logged_scan_area'):
+                        self.log(f"🔍 Tarama Alanı: {scan_area}")
+                        self._logged_scan_area = True
+                    
                     try:
                         img = sct.grab(scan_area)
                     except Exception as e:
@@ -704,6 +718,7 @@ class BotCore:
                     
                     if red_center_local:
                          rx, ry = red_center_local
+                         self.log(f"🔴 Kırmızı Halka tespit edildi! (Yerel: {rx}, {ry})")
                          
                          fish_pos_local = self.find_fish(img, roi_center=(rx, ry), roi_radius=100) 
                          
@@ -779,6 +794,12 @@ class BotCore:
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             
+            # --- DEBUG GÖRSEL ---
+            if self.debug_vision:
+                debug_img = frame.copy()
+                cv2.imshow("RED MASK", mask)
+                cv2.waitKey(1)
+            
             # Kontur bul (Merkez için şart)
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
@@ -832,6 +853,11 @@ class BotCore:
             # Gürültü ve yumuşatma
             kernel = np.ones((3,3), np.uint8)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            
+            # --- DEBUG GÖRSEL ---
+            if self.debug_vision:
+                cv2.imshow("FISH MASK", mask)
+                cv2.waitKey(1)
             
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if contours:

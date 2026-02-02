@@ -124,9 +124,17 @@ class App(ctk.CTk):
         self.minigame_btn = ctk.CTkButton(self.sidebar_frame, text="🎯 Minigame Tanıt", fg_color="#D81B60", hover_color="#AD1457", command=self.define_minigame_area)
         self.minigame_btn.grid(row=4, column=0, padx=20, pady=5)
         
+        # Test Mouse (Debug)
+        self.test_mouse_btn = ctk.CTkButton(self.sidebar_frame, text="🖱️ Test: Tıkla", fg_color="#FF5722", command=self.test_mouse_click)
+        self.test_mouse_btn.grid(row=5, column=0, padx=20, pady=5)
+        
+        # Toggle Debug Vision (Gelişmiş)
+        self.debug_vision_btn = ctk.CTkButton(self.sidebar_frame, text="👁️ Debug: Kapalı", fg_color="#9E9E9E", command=self.toggle_debug_vision)
+        self.debug_vision_btn.grid(row=6, column=0, padx=20, pady=5)
+        
         # --- Multi-Account Bölümü (Opsiyonel) ---
         self.account_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        self.account_frame.grid(row=5, column=0, padx=10, pady=10, sticky="ew")
+        self.account_frame.grid(row=7, column=0, padx=10, pady=10, sticky="ew")
         
         ctk.CTkLabel(self.account_frame, text="📋 Hesaplar", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w")
         
@@ -1533,6 +1541,71 @@ class App(ctk.CTk):
         else:
             from tkinter import messagebox
             messagebox.showwarning("Hata", "Lütfen önce botu durdurun.")
+
+    def test_mouse_click(self):
+        """Mouse kontrolünü test eder (Ekran ortasına tıklar)"""
+        from tkinter import messagebox
+        import platform
+        
+        # Ekran çözünürlüğünü al
+        if platform.system() == "Windows":
+            import ctypes
+            user32 = ctypes.windll.user32
+            screen_w = user32.GetSystemMetrics(0)
+            screen_h = user32.GetSystemMetrics(1)
+        else:
+            # Mac/Linux
+            import pyautogui
+            screen_w, screen_h = pyautogui.size()
+        
+        target_x = screen_w // 2
+        target_y = screen_h // 2
+        
+        self.update_log(f"🧪 Test: Ekran ortasına tıklanıyor ({target_x}, {target_y})")
+        
+        try:
+            if platform.system() == "Windows":
+                try:
+                    import sys
+                    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                    import direct_input
+                    
+                    direct_input.move_mouse(target_x, target_y)
+                    time.sleep(0.2)
+                    direct_input.mouse_down()
+                    time.sleep(0.15)
+                    direct_input.mouse_up()
+                    
+                    messagebox.showinfo("Başarılı", f"Mouse ekran ortasına ({target_x}, {target_y}) gitti!\n\nEğer tıklama gerçekleşmediyse:\n1. Yönetici olarak çalıştırdığınızdan emin olun.\n2. Anti-virus yazılımınızı kontrol edin.")
+                    
+                except Exception as e:
+                    self.update_log(f"direct_input hatası: {e}, pyautogui deneniyor...")
+                    import pyautogui
+                    pyautogui.moveTo(target_x, target_y)
+                    pyautogui.click()
+                    messagebox.showinfo("Kısmi Başarı", f"Pydirectinput ile tıklandı.\n\ndirect_input hatası: {e}")
+            else:
+                import pyautogui
+                pyautogui.moveTo(target_x, target_y)
+                pyautogui.click()
+                messagebox.showinfo("Başarılı", "Mac/Linux: Pyautogui ile tıklandı.")
+        except Exception as e:
+            messagebox.showerror("Hata", f"Mouse testi başarısız:\n{e}")
+            self.update_log(f"Mouse test hatası: {e}")
+
+    def toggle_debug_vision(self):
+        """Debug Vision modunu açar/kapatır (OpenCV pencereleri)"""
+        self.bot.debug_vision = not self.bot.debug_vision
+        
+        if self.bot.debug_vision:
+            self.debug_vision_btn.configure(text="👁️ Debug: AÇIK", fg_color="#4CAF50")
+            self.update_log("🟢 Debug Vision AÇILDI. OpenCV pencereleri açılacak.")
+        else:
+            self.debug_vision_btn.configure(text="👁️ Debug: Kapalı", fg_color="#9E9E9E")
+            self.update_log("🔴 Debug Vision KAPANDI.")
+            # Var olan pencereleri kapat
+            import cv2
+            cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     app = App()
